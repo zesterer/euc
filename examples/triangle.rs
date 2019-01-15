@@ -9,11 +9,11 @@ impl Pipeline for Triangle {
     type VsOut = ();
     type Output = [u8; 4];
 
-    fn vert(_: &(), pos: &[f32; 3]) -> ([f32; 3], ()) {
+    fn vert(_uniform: &(), pos: &[f32; 3]) -> ([f32; 3], ()) {
         (*pos, ())
     }
 
-    fn frag(_: &(), _: &()) -> [u8; 4] {
+    fn frag(_uniform: &(), _vs_out: &()) -> [u8; 4] {
         [255, 0, 0, 255] // Red
     }
 }

@@ -1,11 +1,13 @@
 pub mod rasterizer;
 
+use std::ops::{Mul, Add};
+
 use rasterizer::Rasterizer;
 
 pub trait Pipeline where Self: Sized {
     type Uniform;
     type Input;
-    type VsOut;
+    type VsOut: Clone + Mul<f32, Output=Self::VsOut> + Add<Output=Self::VsOut>;
     type Output;
 
     #[inline(always)]

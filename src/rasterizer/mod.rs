@@ -1,4 +1,7 @@
-use std::marker::PhantomData;
+use std::{
+    ops::{Mul, Add},
+    marker::PhantomData,
+};
 
 use vek::*;
 
@@ -33,12 +36,12 @@ impl<'a> Rasterizer for Triangles<'a> {
         depth: &mut Self::Supplement,
     ) {
         inputs
-            .chunks(3)
+            .chunks_exact(3)
             .for_each(|verts| {
                 // TODO: Use different vertex shader outputs and lerp them
-                let (a, vs_out) = P::vert(uniform, &verts[0]);
-                let (b, vs_out) = P::vert(uniform, &verts[1]);
-                let (c, vs_out) = P::vert(uniform, &verts[2]);
+                let (a, a_vs_out) = P::vert(uniform, &verts[0]);
+                let (b, b_vs_out) = P::vert(uniform, &verts[1]);
+                let (c, c_vs_out) = P::vert(uniform, &verts[2]);
 
                 let a = Vec3::from(a);
                 let b = Vec3::from(b);
@@ -50,8 +53,6 @@ impl<'a> Rasterizer for Triangles<'a> {
                 let a_scr = half_scr * (Vec2::from(a) + 1.0);
                 let b_scr = half_scr * (Vec2::from(b) + 1.0);
                 let c_scr = half_scr * (Vec2::from(c) + 1.0);
-
-                let tris = [a, b, c];
 
                 // Find the top, middle and bottom vertices
                 let (top, mid, bot) = if a_scr.y < b_scr.y {
@@ -69,17 +70,42 @@ impl<'a> Rasterizer for Triangles<'a> {
                 };
 
                 // Find the x position of an edge given its y
+                #[inline(always)]
                 fn solve_x(a: Vec2<f32>, b: Vec2<f32>, y: f32) -> f32 {
                     a.x + (b.x - a.x) * (y - a.y) / (b.y - a.y)
                 }
 
-                let mut put_target = |x, y, out| {
-                    if
-                        x >= 0 && y >= 0 &&
-                        x < size[0] as i32 && y < size[1] as i32
-                    {
-                        target[y as usize * size[0] + x as usize] = out;
-                    };
+                #[inline(always)]
+                fn lerp_tri<T: Mul<f32, Output=T> + Add<Output=T>>(
+                    a: Vec3<f32>,
+                    b: Vec3<f32>,
+                    c: Vec3<f32>,
+                    p: Vec3<f32>,
+                    a_val: T,
+                    b_val: T,
+                    c_val: T,
+                ) -> T {
+                    let total = (a - b).cross(a - c).magnitude();
+                    let a_fact = (b - p).cross(c - p).magnitude() / total;
+                    let b_fact = (c - p).cross(a - p).magnitude() / total;
+                    let c_fact = (a - p).cross(b - p).magnitude() / total;
+
+                    a_val * a_fact +
+                    b_val * b_fact +
+                    c_val * c_fact
+                }
+
+                #[inline(always)]
+                fn put<T>(surf: &mut [T], w: usize, x: i32, y: i32, out: T) {
+                    surf[y as usize * w + x as usize] = out;
+                };
+
+                #[inline(always)]
+                fn fetch<T: Clone>(surf: &[T], w: usize, x: i32, y: i32, default: T) -> T {
+                    surf
+                        .get(y as usize * w + x as usize)
+                        .cloned()
+                        .unwrap_or(default)
                 };
 
                 let height =
@@ -100,7 +126,30 @@ impl<'a> Rasterizer for Triangles<'a> {
                             .min(size[0] as i32 - 1);
 
                         for x in breadth {
-                            put_target(x, y, P::frag(uniform, &vs_out));
+                            let vs_out_lerped = lerp_tri(
+                                Vec3::from(a_scr),
+                                Vec3::from(b_scr),
+                                Vec3::from(c_scr),
+                                Vec3::new(x as f32, y as f32, 0.0),
+                                a_vs_out.clone(),
+                                b_vs_out.clone(),
+                                c_vs_out.clone(),
+                            );
+
+                            let z_lerped = lerp_tri(
+                                Vec3::from(a_scr),
+                                Vec3::from(b_scr),
+                                Vec3::from(c_scr),
+                                Vec3::new(x as f32, y as f32, 0.0),
+                                a.z,
+                                b.z,
+                                c.z,
+                            );
+
+                            if z_lerped < fetch(depth, size[0], x, y, 0.0) {
+                                put(depth, size[0], x, y, z_lerped);
+                                put(target, size[0], x, y, P::frag(uniform, &vs_out_lerped));
+                            }
                         }
                     }
                 } else {
@@ -114,7 +163,30 @@ impl<'a> Rasterizer for Triangles<'a> {
                             .min(size[0] as i32 - 1);
 
                         for x in breadth {
-                            put_target(x, y, P::frag(uniform, &vs_out));
+                            let vs_out_lerped = lerp_tri(
+                                Vec3::from(a_scr),
+                                Vec3::from(b_scr),
+                                Vec3::from(c_scr),
+                                Vec3::new(x as f32, y as f32, 0.0),
+                                a_vs_out.clone(),
+                                b_vs_out.clone(),
+                                c_vs_out.clone(),
+                            );
+
+                            let z_lerped = lerp_tri(
+                                Vec3::from(a_scr),
+                                Vec3::from(b_scr),
+                                Vec3::from(c_scr),
+                                Vec3::new(x as f32, y as f32, 0.0),
+                                a.z,
+                                b.z,
+                                c.z,
+                            );
+
+                            if z_lerped < fetch(depth, size[0], x, y, 0.0) {
+                                put(depth, size[0], x, y, z_lerped);
+                                put(target, size[0], x, y, P::frag(uniform, &vs_out_lerped));
+                            }
                         }
                     }
                 };
