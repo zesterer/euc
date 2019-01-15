@@ -1,0 +1,11 @@
+[package]
+name = "euc"
+version = "0.1.0"
+authors = ["Joshua Barretto <joshua.s.barretto@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+vek = "0.9"
+
+[dev-dependencies]
+mini_gl_fb = "0.6"
