@@ -1,19 +1,24 @@
-use euc::{Pipeline, rasterizer};
+use euc::{
+    Pipeline,
+    rasterizer,
+    buffer::Buffer2d,
+    Nothing,
+};
 use mini_gl_fb;
 
 struct Triangle;
 
 impl Pipeline for Triangle {
-    type Uniform = ();
-    type Input = [f32; 3];
-    type VsOut = ();
-    type Output = [u8; 4];
+    type Uniform = Nothing;
+    type Vertex = [f32; 3];
+    type VsOut = Nothing;
+    type Pixel = [u8; 4];
 
-    fn vert(_uniform: &(), pos: &[f32; 3]) -> ([f32; 3], ()) {
-        (*pos, ())
+    fn vert(_: &Self::Uniform, pos: &[f32; 3]) -> ([f32; 3], Self::VsOut) {
+        (*pos, Nothing)
     }
 
-    fn frag(_uniform: &(), _vs_out: &()) -> [u8; 4] {
+    fn frag(_: &Self::Uniform, _: &Self::VsOut) -> Self::Pixel {
         [255, 0, 0, 255] // Red
     }
 }
@@ -22,22 +27,21 @@ const W: usize = 640;
 const H: usize = 480;
 
 fn main() {
-    let mut color = vec![[0; 4]; W * H];
-    let mut depth = vec![1.0; W * H];
+    let mut color = Buffer2d::new([W, H], [0; 4]);
+    let mut depth = Buffer2d::new([W, H], 1.0);
 
-    Triangle::draw::<rasterizer::Triangles>(
-        [W, H],
-        &(),
+    Triangle::draw::<rasterizer::Triangles<_>, _>(
+        &Nothing,
         &[
             [-1.0, -1.0, 0.0],
             [ 1.0, -1.0, 0.0],
             [ 0.0,  1.0, 0.0],
         ],
-        &mut color.as_mut(),
-        &mut depth.as_mut(),
+        &mut color,
+        &mut depth,
     );
 
     let mut win = mini_gl_fb::gotta_go_fast("Triangle", W as f64, H as f64);
-    win.update_buffer(&color);
+    win.update_buffer(color.as_ref());
     win.persist();
 }
