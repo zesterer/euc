@@ -2,6 +2,8 @@
 
 A software rendering crate that lets you write shaders in Rust.
 
+![Spinning Cube](misc/cube.png)
+
 ## Example
 
 ```rust
@@ -54,3 +56,23 @@ fn main() {
 - Modern CPUs are fast enough to make lightweight software-rendered programs run at reasonable speeds (although they are of course no match for GPUs).
 
 - Writing a software renderer is a brilliant way to learn about modern 3D rendering techniques.
+
+## Performance Concerns
+
+Cargo, by default, compiles Rust code in debug mode.
+In this mode, very few optimisations are made upon the code, and as a result the performance of software rendering tends to suffer.
+To experience this project with decent performance, make sure you compile with the `--release` flag.
+
+## Goals
+
+- Support for programmable shaders
+
+- Simple, clear interface
+
+## Non-Goals
+
+- Correctness
+
+- Extreme optimisation
+
+- Compliance with an existing API (i.e: OpenGL)
