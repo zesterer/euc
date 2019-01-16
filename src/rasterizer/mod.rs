@@ -51,7 +51,7 @@ impl<'a, D: Target<Item=f32>> Rasterizer for Triangles<'a, D> {
                 let c = Vec3::from(c);
 
                 // Skip back faces
-                if (b - a).cross(c - a).z > 0.0 {
+                if (b - a).cross(c - a).z < 0.0 {
                     return;
                 }
 
@@ -91,7 +91,7 @@ impl<'a, D: Target<Item=f32>> Rasterizer for Triangles<'a, D> {
                 let c_px = c_scr.map(|e| e as usize);
 
                 let min: Vec2<usize> = Vec2::max(Vec2::min(Vec2::min(a_px, b_px), c_px), Vec2::zero());
-                let max: Vec2<usize> = Vec2::min(Vec2::max(Vec2::max(a_px, b_px), c_px), size) + Vec2::one();
+                let max: Vec2<usize> = Vec2::min(Vec2::max(Vec2::max(a_px, b_px), c_px) + Vec2::one(), size);
 
                 for y in min.y..max.y {
                     for x in min.x..max.x {
