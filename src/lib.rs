@@ -1,7 +1,13 @@
+#![no_std]
+#![feature(alloc)]
+
+#[macro_use]
+extern crate alloc;
+
 pub mod rasterizer;
 pub mod buffer;
 
-use std::ops::{Mul, Add};
+use core::ops::{Mul, Add};
 
 use self::rasterizer::Rasterizer;
 

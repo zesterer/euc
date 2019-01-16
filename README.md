@@ -1,8 +1,8 @@
-# Euc
+# `euc`
 
-A software rendering crate that lets you write shaders in Rust.
+A 3D rendering crate that lets you write shaders in Rust.
 
-![Spinning Cube](misc/cube.png)
+![Example rendering](misc/example.png)
 
 ## Example
 
@@ -11,32 +11,31 @@ struct Triangle;
 
 impl Pipeline for Triangle {
     type Uniform = Nothing;
-    type Vertex = [f32; 3];
+    type Vertex = [f32; 2];
     type VsOut = Nothing;
     type Pixel = [u8; 4];
 
-    fn vert(_: &Self::Uniform, pos: &[f32; 3]) -> ([f32; 3], Self::VsOut) {
-        (*pos, Nothing)
+    // Vertex shader
+    fn vert(_: &Self::Uniform, pos: &Self::Vertex) -> ([f32; 3], Self::VsOut) {
+        ([pos[0], pos[1], 0.0], Nothing)
     }
 
+    // Fragment shader
     fn frag(_: &Self::Uniform, _: &Self::VsOut) -> Self::Pixel {
         [255, 0, 0, 255] // Red
     }
 }
 
-const W: usize = 640;
-const H: usize = 480;
-
 fn main() {
-    let mut color = Buffer2d::new([W, H], [0; 4]);
-    let mut depth = Buffer2d::new([W, H], 1.0);
+    let mut color = Buffer2d::new([640, 480], [0; 4]);
+    let mut depth = Buffer2d::new([640, 480], 1.0);
 
     Triangle::draw::<rasterizer::Triangles<_>, _>(
         &Nothing,
         &[
-            [-1.0, -1.0, 0.0],
-            [ 1.0, -1.0, 0.0],
-            [ 0.0,  1.0, 0.0],
+            [-1.0, -1.0],
+            [ 1.0, -1.0],
+            [ 0.0,  1.0],
         ],
         &mut color,
         &mut depth,
@@ -44,30 +43,38 @@ fn main() {
 }
 ```
 
+See `examples/` for more code example.
+
+## What is `euc`?
+
+`euc` is a versatile, simple to use crate that allows 3D rendering on the CPU.
+
 ## Why?
 
-- Writing rendering code on the CPU requires significantly less boilerplate setup code than on the GPU, and so is brilliant for playing around with ideas.
+- Modern graphics APIs are complex, verbose beasts. Rendering with the CPU means less complexity, less boilerplate and less verbosity: perfect for testing ideas.
 
-- Modern CPUs are fast enough to make lightweight software-rendered programs run at reasonable speeds (although they are of course no match for GPUs).
+- Modern CPUs are fast enough to make simple 3D programs run at reasonable speeds (although they are of course no match for GPUs).
 
-- Writing a software renderer is a brilliant way to learn about modern 3D rendering techniques.
+- Not requiring a GPU interface means that `euc` is incredibly portable. As a result, `euc` is `no_std`.
 
-## Performance Concerns
+## Release Mode
 
 Cargo, by default, compiles Rust code in debug mode.
 In this mode, very few optimisations are made upon the code, and as a result the performance of software rendering tends to suffer.
-To experience this project with decent performance, make sure you compile with the `--release` flag.
+To experience this project with good performance, make sure to compile with the `--release` flag.
 
 ## Goals
 
-- Support for programmable shaders
+- Support programmable shaders written in Rust
 
-- Simple, clear interface
+- Support common pipeline features such as texture samplers, multiple rendering passes, uniform data, etc.
 
-## Non-Goals
+- Simple, elegant interface that scales well
 
 - Correctness
 
+## Non-Goals
+
 - Extreme optimisation
 
-- Compliance with an existing API (i.e: OpenGL)
+- Compliance/compatibility with an existing API (i.e: OpenGL)

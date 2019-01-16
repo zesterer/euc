@@ -8,5 +8,5 @@ edition = "2018"
 vek = "0.9"
 
 [dev-dependencies]
-mini_gl_fb = "0.6"
+minifb = "0.11"
 tobj = "0.1"

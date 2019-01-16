@@ -5,7 +5,7 @@ use euc::{
     buffer::Buffer2d,
     Target,
 };
-use mini_gl_fb;
+use minifb;
 use tobj;
 use vek::*;
 
@@ -17,7 +17,7 @@ impl<'a> Pipeline for Teapot<'a> {
     type Uniform = (Mat4<f32>, &'a [f32], &'a [f32]);
     type Vertex = u32;
     type VsOut = Vec3<f32>;
-    type Pixel = [u8; 4];
+    type Pixel = u32;
 
     #[inline(always)]
     fn vert(
@@ -40,33 +40,46 @@ impl<'a> Pipeline for Teapot<'a> {
     }
 
     #[inline(always)]
-    fn frag(_: &Self::Uniform, normal: &Self::VsOut) -> Self::Pixel {
+    fn frag((cam_mat, _, _): &Self::Uniform, normal: &Self::VsOut) -> Self::Pixel {
         let light_dir = Vec3::new(1.0, 1.0, 1.0).normalized();
-        let light_factor = normal.dot(light_dir).max(0.0) * 0.8 + 0.2;
-        (Rgba::new(1.0, 0.9, 0.7, 1.0) * light_factor).map(|e| (255.0 * e) as u8).into_array()
+
+        let cam_normal = *cam_mat * Vec4::from(*normal);
+
+        let ambient = 0.2;
+        let diffuse = normal.dot(light_dir).max(0.0) * 0.5;
+        let specular = light_dir.reflected(Vec3::from(cam_normal).normalized()).dot(-Vec3::unit_z()).powf(20.0);
+        let light = (ambient + diffuse + specular).min(1.0);
+
+        let color = Rgba::new(1.0, 0.9, 0.7, 1.0) * light;
+
+        let bytes = (color * 255.0).map(|e| e as u8).into_array();
+        (bytes[2] as u32) << 0 |
+        (bytes[1] as u32) << 8 |
+        (bytes[0] as u32) << 16 |
+        (bytes[3] as u32) << 24
     }
 }
 
-const W: usize = 640;
-const H: usize = 480;
+const W: usize = 800;
+const H: usize = 600;
 
 fn main() {
-    let mut color = Buffer2d::new([W, H], [0; 4]);
+    let mut color = Buffer2d::new([W, H], 0);
     let mut depth = Buffer2d::new([W, H], 1.0);
 
-    let mut win = mini_gl_fb::gotta_go_fast("Teapot", W as f64, H as f64);
-
     let teapot = tobj::load_obj(&Path::new("examples/data/teapot.obj")).unwrap().0.remove(0);
+
+    let mut win = minifb::Window::new("Teapot", W, H, minifb::WindowOptions::default()).unwrap();
 
     for i in 0.. {
         let cam_mat =
             Mat4::perspective_rh_no(1.3, 1.35, 0.01, 100.0) *
             Mat4::<f32>::scaling_3d(0.5) *
-            Mat4::rotation_x((i as f32 * 0.01).sin() * 3.0) *
-            Mat4::rotation_y((i as f32 * 0.02).cos() * 2.0);
-            Mat4::rotation_z((i as f32 * 0.003).sin() * 10.0);
+            Mat4::rotation_x((i as f32 * 0.002).sin() * 8.0) *
+            Mat4::rotation_y((i as f32 * 0.004).cos() * 4.0);
+            Mat4::rotation_z((i as f32 * 0.008).sin() * 2.0);
 
-        color.clear([0; 4]);
+        color.clear(0);
         depth.clear(1.0);
 
         Teapot::draw::<rasterizer::Triangles<_>, _>(
@@ -76,9 +89,9 @@ fn main() {
             &mut depth,
         );
 
-        win.update_buffer(color.as_ref());
-
-        if !win.is_running() {
+        if win.is_open() {
+            win.update_with_buffer(color.as_ref()).unwrap();
+        } else {
             break;
         }
     }

@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 use vek::*;
 
@@ -38,6 +38,7 @@ impl<'a, D: Target<Item=f32>> Rasterizer for Triangles<'a, D> {
 
         let size = Vec2::from(target.size());
         let half_scr = size.map(|e: usize| e as f32 * 0.5);
+        const MIRROR: Vec2<f32> = Vec2 { x: 1.0, y: -1.0 };
 
         vertices
             .chunks_exact(3)
@@ -56,15 +57,15 @@ impl<'a, D: Target<Item=f32>> Rasterizer for Triangles<'a, D> {
                 }
 
                 // Convert to framebuffer coordinates
-                let a_scr = half_scr * (Vec2::from(a) + 1.0);
-                let b_scr = half_scr * (Vec2::from(b) + 1.0);
-                let c_scr = half_scr * (Vec2::from(c) + 1.0);
+                let a_scr = half_scr * (Vec2::from(a) * MIRROR + 1.0);
+                let b_scr = half_scr * (Vec2::from(b) * MIRROR + 1.0);
+                let c_scr = half_scr * (Vec2::from(c) * MIRROR + 1.0);
 
-                // Find the x position of an edge given its y
-                #[inline(always)]
-                fn solve_x(a: Vec2<f32>, b: Vec2<f32>, y: f32) -> f32 {
-                    a.x + (b.x - a.x) * (y - a.y) / (b.y - a.y)
-                }
+                // // Find the x position of an edge given its y
+                // #[inline(always)]
+                // fn solve_x(a: Vec2<f32>, b: Vec2<f32>, y: f32) -> f32 {
+                //     a.x + (b.x - a.x) * (y - a.y) / (b.y - a.y)
+                // }
 
                 #[inline(always)]
                 fn get_tri_lerp(
