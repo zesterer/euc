@@ -3,7 +3,7 @@ pub mod buffer;
 
 use std::ops::{Mul, Add};
 
-use rasterizer::Rasterizer;
+use self::rasterizer::Rasterizer;
 
 pub trait Pipeline where Self: Sized {
     type Uniform;
@@ -58,9 +58,9 @@ impl<T: Mul<f32, Output=T> + Add<Output=T>> Interpolate for T {
 pub struct Nothing;
 impl Interpolate for Nothing {
     #[inline(always)]
-    fn lerp2(_: Self, _: Self, _: f32, _: f32) -> Self { Self }
+    fn lerp2(_: Self, _: Self, _: f32, _: f32) -> Self { Nothing }
     #[inline(always)]
-    fn lerp3(_: Self, _: Self, _: Self, _: f32, _: f32, _: f32) -> Self { Self }
+    fn lerp3(_: Self, _: Self, _: Self, _: f32, _: f32, _: f32) -> Self { Nothing }
 }
 
 pub trait Target {

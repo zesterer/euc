@@ -61,7 +61,7 @@ fn main() {
     for i in 0.. {
         let cam_mat =
             Mat4::perspective_rh_no(1.3, 1.35, 0.01, 100.0) *
-            Mat4::<f32>::scaling_3d(0.3) *
+            Mat4::<f32>::scaling_3d(0.5) *
             Mat4::rotation_x((i as f32 * 0.01).sin() * 3.0) *
             Mat4::rotation_y((i as f32 * 0.02).cos() * 2.0);
             Mat4::rotation_z((i as f32 * 0.003).sin() * 10.0);
