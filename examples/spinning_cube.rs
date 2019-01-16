@@ -61,57 +61,57 @@ fn main() {
             ]),
             &[
                 // -x
-                (0, Rgba::red()),
+                (0, Rgba::green()),
                 (2, Rgba::red()),
-                (3, Rgba::red()),
+                (3, Rgba::blue()),
 
-                (0, Rgba::red()),
-                (3, Rgba::red()),
+                (0, Rgba::green()),
+                (3, Rgba::blue()),
                 (1, Rgba::red()),
 
                 // +x
-                (4, Rgba::red()),
+                (4, Rgba::green()),
                 (6, Rgba::red()),
-                (7, Rgba::red()),
+                (7, Rgba::blue()),
 
-                (4, Rgba::red()),
-                (7, Rgba::red()),
+                (4, Rgba::green()),
+                (7, Rgba::blue()),
                 (5, Rgba::red()),
 
                 // -y
-                (0, Rgba::green()),
+                (0, Rgba::red()),
                 (4, Rgba::green()),
-                (5, Rgba::green()),
+                (5, Rgba::blue()),
 
-                (0, Rgba::green()),
-                (5, Rgba::green()),
+                (0, Rgba::red()),
+                (5, Rgba::blue()),
                 (1, Rgba::green()),
 
                 // +y
-                (2, Rgba::green()),
+                (2, Rgba::red()),
                 (6, Rgba::green()),
-                (7, Rgba::green()),
+                (7, Rgba::blue()),
 
-                (2, Rgba::green()),
-                (7, Rgba::green()),
+                (2, Rgba::red()),
+                (7, Rgba::blue()),
                 (3, Rgba::green()),
 
                 // -z
-                (0, Rgba::blue()),
+                (0, Rgba::red()),
                 (4, Rgba::blue()),
-                (6, Rgba::blue()),
+                (6, Rgba::green()),
 
-                (0, Rgba::blue()),
-                (6, Rgba::blue()),
+                (0, Rgba::red()),
+                (6, Rgba::green()),
                 (2, Rgba::blue()),
 
                 // +z
-                (1, Rgba::blue()),
+                (1, Rgba::red()),
                 (5, Rgba::blue()),
-                (7, Rgba::blue()),
+                (7, Rgba::green()),
 
-                (1, Rgba::blue()),
-                (7, Rgba::blue()),
+                (1, Rgba::red()),
+                (7, Rgba::green()),
                 (3, Rgba::blue()),
             ],
             &mut color.as_mut(),

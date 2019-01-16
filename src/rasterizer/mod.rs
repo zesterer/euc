@@ -112,18 +112,18 @@ impl<'a> Rasterizer for Triangles<'a> {
                     (top.y as i32)
                     .max(0)
                     ..
-                    (bot.y as i32)
-                    .min(size[1] as i32 - 1);
+                    (bot.y as i32 + 1)
+                    .min(size[1] as i32);
 
-                if mid.x < bot.x {
+                if mid.x < solve_x(top, bot, mid.y) {
                     // Left-pointing
                     for y in height {
                         let breadth =
                             (solve_x(top, mid, y as f32).max(solve_x(mid, bot, y as f32)) as i32)
                             .max(0)
                             ..
-                            (solve_x(top, bot, y as f32) as i32)
-                            .min(size[0] as i32 - 1);
+                            (solve_x(top, bot, y as f32) as i32 + 1)
+                            .min(size[0] as i32);
 
                         for x in breadth {
                             let vs_out_lerped = lerp_tri(
@@ -159,8 +159,8 @@ impl<'a> Rasterizer for Triangles<'a> {
                             (solve_x(top, bot, y as f32) as i32)
                             .max(0)
                             ..
-                            (solve_x(top, mid, y as f32).min(solve_x(mid, bot, y as f32)) as i32)
-                            .min(size[0] as i32 - 1);
+                            (solve_x(top, mid, y as f32).min(solve_x(mid, bot, y as f32)) as i32 + 1)
+                            .min(size[0] as i32);
 
                         for x in breadth {
                             let vs_out_lerped = lerp_tri(
