@@ -5,7 +5,7 @@ use vek::*;
 use crate::{
     Pipeline,
     Target,
-    VsOut,
+    Interpolate,
 };
 
 pub trait Rasterizer {
@@ -42,7 +42,6 @@ impl<'a, D: Target<Item=f32>> Rasterizer for Triangles<'a, D> {
         vertices
             .chunks_exact(3)
             .for_each(|verts| {
-                // TODO: Use different vertex shader outputs and lerp them
                 let (a, a_vs_out) = P::vert(uniform, &verts[0]);
                 let (b, b_vs_out) = P::vert(uniform, &verts[1]);
                 let (c, c_vs_out) = P::vert(uniform, &verts[2]);
@@ -51,25 +50,15 @@ impl<'a, D: Target<Item=f32>> Rasterizer for Triangles<'a, D> {
                 let b = Vec3::from(b);
                 let c = Vec3::from(c);
 
+                // Skip back faces
+                if (b - a).cross(c - a).z > 0.0 {
+                    return;
+                }
+
                 // Convert to framebuffer coordinates
                 let a_scr = half_scr * (Vec2::from(a) + 1.0);
                 let b_scr = half_scr * (Vec2::from(b) + 1.0);
                 let c_scr = half_scr * (Vec2::from(c) + 1.0);
-
-                // Find the top, middle and bottom vertices
-                let (top, mid, bot) = if a_scr.y < b_scr.y {
-                    if a_scr.y < c_scr.y {
-                        if b_scr.y < c_scr.y { (a_scr, b_scr, c_scr) } else { (a_scr, c_scr, b_scr) }
-                    } else {
-                        if a_scr.y < b_scr.y { (c_scr, a_scr, b_scr) } else { (c_scr, b_scr, a_scr) }
-                    }
-                } else {
-                    if b_scr.y < c_scr.y {
-                        if a_scr.y < c_scr.y { (b_scr, a_scr, c_scr) } else { (b_scr, c_scr, a_scr) }
-                    } else {
-                        if a_scr.y < b_scr.y { (c_scr, a_scr, b_scr) } else { (c_scr, b_scr, a_scr) }
-                    }
-                };
 
                 // Find the x position of an edge given its y
                 #[inline(always)]
@@ -78,118 +67,60 @@ impl<'a, D: Target<Item=f32>> Rasterizer for Triangles<'a, D> {
                 }
 
                 #[inline(always)]
-                fn lerp_tri<T: VsOut>(
-                    a: Vec3<f32>,
-                    b: Vec3<f32>,
-                    c: Vec3<f32>,
-                    p: Vec3<f32>,
-                    a_val: T,
-                    b_val: T,
-                    c_val: T,
-                ) -> T {
-                    let total = (a - b).cross(a - c).magnitude();
-                    let a_fact = (b - p).cross(c - p).magnitude() / total;
-                    let b_fact = (c - p).cross(a - p).magnitude() / total;
-                    let c_fact = (a - p).cross(b - p).magnitude() / total;
+                fn get_tri_lerp(
+                    a: Vec2<f32>,
+                    b: Vec2<f32>,
+                    c: Vec2<f32>,
+                    p: Vec2<f32>,
+                ) -> (f32, f32, f32) {
+                    let wa =
+                        ((b.y - c.y) * (p.x - c.x) + (c.x - b.x) * (p.y - c.y)) /
+                        ((b.y - c.y) * (a.x - c.x) + (c.x - b.x) * (a.y - c.y));
 
-                    <T as VsOut>::lerp3(
-                        a_val,
-                        b_val,
-                        c_val,
-                        a_fact,
-                        b_fact,
-                        c_fact,
-                    )
+                    let wb =
+                        ((c.y - a.y) * (p.x - c.x) + (a.x - c.x) * (p.y - c.y)) /
+                        ((b.y - c.y) * (a.x - c.x) + (c.x - b.x) * (a.y - c.y));
+
+                    let wc = 1.0 - wa - wb;
+
+                    (wa, wb, wc)
                 }
 
-                let height =
-                    (top.y as i32)
-                    .max(0)
-                    ..
-                    (bot.y as i32 + 1)
-                    .min(size[1] as i32);
+                let a_px = a_scr.map(|e| e as usize);
+                let b_px = b_scr.map(|e| e as usize);
+                let c_px = c_scr.map(|e| e as usize);
 
-                if mid.x < solve_x(top, bot, mid.y) {
-                    // Left-pointing
-                    for y in height {
-                        let breadth =
-                            (solve_x(top, mid, y as f32).max(solve_x(mid, bot, y as f32)) as i32)
-                            .max(0)
-                            ..
-                            (solve_x(top, bot, y as f32) as i32 + 1)
-                            .min(size[0] as i32);
+                let min: Vec2<usize> = Vec2::max(Vec2::min(Vec2::min(a_px, b_px), c_px), Vec2::zero());
+                let max: Vec2<usize> = Vec2::min(Vec2::max(Vec2::max(a_px, b_px), c_px), size) + Vec2::one();
 
-                        for x in breadth {
-                            let vs_out_lerped = lerp_tri(
-                                Vec3::from(a_scr),
-                                Vec3::from(b_scr),
-                                Vec3::from(c_scr),
-                                Vec3::new(x as f32, y as f32, 0.0),
-                                a_vs_out.clone(),
-                                b_vs_out.clone(),
-                                c_vs_out.clone(),
-                            );
+                for y in min.y..max.y {
+                    for x in min.x..max.x {
+                        let fpos = Vec2::new(x as f32 + 0.5, y as f32 + 0.5);
+                        let (wa, wb, wc) = get_tri_lerp(a_scr, b_scr, c_scr, fpos);
 
-                            let z_lerped = lerp_tri(
-                                Vec3::from(a_scr),
-                                Vec3::from(b_scr),
-                                Vec3::from(c_scr),
-                                Vec3::new(x as f32, y as f32, 0.0),
-                                a.z,
-                                b.z,
-                                c.z,
-                            );
+                        // Is the point inside the triangle?
+                        if wa.min(wb).min(wc) >= 0.0 {
+                            let z_lerped = f32::lerp3(a.z, b.z, c.z, wa, wb, wc);
 
-                            unsafe {
-                                let pos = [x as usize, y as usize];
-                                if z_lerped < *depth.get(pos) {
-                                    depth.set(pos, z_lerped);
-                                    target.set(pos, P::frag(uniform, &vs_out_lerped));
+                            // Depth test
+                            if z_lerped < unsafe { *depth.get([x, y]) } {
+                                let vs_out_lerped = P::VsOut::lerp3(
+                                    a_vs_out.clone(),
+                                    b_vs_out.clone(),
+                                    c_vs_out.clone(),
+                                    wa,
+                                    wb,
+                                    wc,
+                                );
+
+                                unsafe {
+                                    depth.set([x, y], z_lerped);
+                                    target.set([x, y], P::frag(uniform, &vs_out_lerped));
                                 }
                             }
                         }
                     }
-                } else {
-                    // Right-pointing
-                    for y in height {
-                        let breadth =
-                            (solve_x(top, bot, y as f32) as i32)
-                            .max(0)
-                            ..
-                            (solve_x(top, mid, y as f32).min(solve_x(mid, bot, y as f32)) as i32 + 1)
-                            .min(size[0] as i32);
-
-                        for x in breadth {
-                            let vs_out_lerped = lerp_tri(
-                                Vec3::from(a_scr),
-                                Vec3::from(b_scr),
-                                Vec3::from(c_scr),
-                                Vec3::new(x as f32, y as f32, 0.0),
-                                a_vs_out.clone(),
-                                b_vs_out.clone(),
-                                c_vs_out.clone(),
-                            );
-
-                            let z_lerped = lerp_tri(
-                                Vec3::from(a_scr),
-                                Vec3::from(b_scr),
-                                Vec3::from(c_scr),
-                                Vec3::new(x as f32, y as f32, 0.0),
-                                a.z,
-                                b.z,
-                                c.z,
-                            );
-
-                            unsafe {
-                                let pos = [x as usize, y as usize];
-                                if z_lerped < *depth.get(pos) {
-                                    depth.set(pos, z_lerped);
-                                    target.set(pos, P::frag(uniform, &vs_out_lerped));
-                                }
-                            }
-                        }
-                    }
-                };
+                }
             });
     }
 }

@@ -8,7 +8,7 @@ use rasterizer::Rasterizer;
 pub trait Pipeline where Self: Sized {
     type Uniform;
     type Vertex;
-    type VsOut: Clone + VsOut;
+    type VsOut: Clone + Interpolate;
     type Pixel: Clone;
 
     #[inline(always)]
@@ -34,16 +34,21 @@ pub trait Pipeline where Self: Sized {
     }
 }
 
-pub trait VsOut {
+pub trait Interpolate {
+    #[inline(always)]
     fn lerp2(a: Self, b: Self, x: f32, y: f32) -> Self;
+    #[inline(always)]
     fn lerp3(a: Self, b: Self, c: Self, x: f32, y: f32, z: f32) -> Self;
 }
 
 // Default impl for certain types
-impl<T: Mul<f32, Output=T> + Add<Output=T>> VsOut for T {
+impl<T: Mul<f32, Output=T> + Add<Output=T>> Interpolate for T {
+    #[inline(always)]
     fn lerp2(a: Self, b: Self, x: f32, y: f32) -> Self {
         a * x + b * y
     }
+
+    #[inline(always)]
     fn lerp3(a: Self, b: Self, c: Self, x: f32, y: f32, z: f32) -> Self {
         a * x + b * y + c * z
     }
@@ -51,8 +56,10 @@ impl<T: Mul<f32, Output=T> + Add<Output=T>> VsOut for T {
 
 #[derive(Clone)]
 pub struct Nothing;
-impl VsOut for Nothing {
+impl Interpolate for Nothing {
+    #[inline(always)]
     fn lerp2(_: Self, _: Self, _: f32, _: f32) -> Self { Self }
+    #[inline(always)]
     fn lerp3(_: Self, _: Self, _: Self, _: f32, _: f32, _: f32) -> Self { Self }
 }
 

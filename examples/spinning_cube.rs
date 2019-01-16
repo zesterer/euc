@@ -76,22 +76,22 @@ fn main() {
                 (1, Rgba::red()),
 
                 // +x
-                (4, Rgba::green()),
+                (7, Rgba::blue()),
                 (6, Rgba::red()),
-                (7, Rgba::blue()),
-
                 (4, Rgba::green()),
-                (7, Rgba::blue()),
+
                 (5, Rgba::red()),
+                (7, Rgba::blue()),
+                (4, Rgba::green()),
 
                 // -y
-                (0, Rgba::red()),
+                (5, Rgba::blue()),
                 (4, Rgba::green()),
-                (5, Rgba::blue()),
-
                 (0, Rgba::red()),
-                (5, Rgba::blue()),
+
                 (1, Rgba::green()),
+                (5, Rgba::blue()),
+                (0, Rgba::red()),
 
                 // +y
                 (2, Rgba::red()),
@@ -112,13 +112,13 @@ fn main() {
                 (2, Rgba::blue()),
 
                 // +z
-                (1, Rgba::red()),
+                (7, Rgba::green()),
                 (5, Rgba::blue()),
-                (7, Rgba::green()),
-
                 (1, Rgba::red()),
-                (7, Rgba::green()),
+
                 (3, Rgba::blue()),
+                (7, Rgba::green()),
+                (1, Rgba::red()),
             ],
             &mut color,
             &mut depth,
