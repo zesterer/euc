@@ -61,63 +61,72 @@ impl<'a, D: Target<Item=f32>> Rasterizer for Triangles<'a, D> {
                 let b_scr = half_scr * (Vec2::from(b) * MIRROR + 1.0);
                 let c_scr = half_scr * (Vec2::from(c) * MIRROR + 1.0);
 
+                #[inline(always)]
+                fn edge(a: Vec2<f32>, b: Vec2<f32>, c: Vec2<f32>) -> f32 {
+                    (c.x - a.x) * (b.y - a.y) - (c.y - a.y) * (b.x - a.x)
+                }
+
                 // // Find the x position of an edge given its y
                 // #[inline(always)]
                 // fn solve_x(a: Vec2<f32>, b: Vec2<f32>, y: f32) -> f32 {
                 //     a.x + (b.x - a.x) * (y - a.y) / (b.y - a.y)
                 // }
 
-                #[inline(always)]
-                fn get_tri_lerp(
-                    a: Vec2<f32>,
-                    b: Vec2<f32>,
-                    c: Vec2<f32>,
-                    p: Vec2<f32>,
-                ) -> (f32, f32, f32) {
-                    let wa =
-                        ((b.y - c.y) * (p.x - c.x) + (c.x - b.x) * (p.y - c.y)) /
-                        ((b.y - c.y) * (a.x - c.x) + (c.x - b.x) * (a.y - c.y));
+                let a_px = a_scr.map(|e| e as i32);
+                let b_px = b_scr.map(|e| e as i32);
+                let c_px = c_scr.map(|e| e as i32);
 
-                    let wb =
-                        ((c.y - a.y) * (p.x - c.x) + (a.x - c.x) * (p.y - c.y)) /
-                        ((b.y - c.y) * (a.x - c.x) + (c.x - b.x) * (a.y - c.y));
+                let min = a_px
+                    .map2(b_px, |e, b| e.min(b))
+                    .map2(c_px, |e, c| e.min(c))
+                    .map(|e| e.max(0))
+                    .map2(size, |e, sz| (e).min(sz as i32) as usize);
+                let max = a_px
+                    .map2(b_px, |e, b| e.max(b))
+                    .map2(c_px, |e, c| e.max(c))
+                    .map(|e| e.max(0))
+                    .map2(size, |e, sz| (e + 1).min(sz as i32) as usize);
 
-                    let wc = 1.0 - wa - wb;
-
-                    (wa, wb, wc)
-                }
-
-                let a_px = a_scr.map(|e| e as usize);
-                let b_px = b_scr.map(|e| e as usize);
-                let c_px = c_scr.map(|e| e as usize);
-
-                let min: Vec2<usize> = Vec2::max(Vec2::min(Vec2::min(a_px, b_px), c_px), Vec2::zero());
-                let max: Vec2<usize> = Vec2::min(Vec2::max(Vec2::max(a_px, b_px), c_px) + Vec2::one(), size);
+                let area = edge(a_scr, b_scr, c_scr);
 
                 for y in min.y..max.y {
                     for x in min.x..max.x {
-                        let fpos = Vec2::new(x as f32 + 0.5, y as f32 + 0.5);
-                        let (wa, wb, wc) = get_tri_lerp(a_scr, b_scr, c_scr, fpos);
+                        // Where is the centre of the fragment?
+                        let p = Vec2::new(x as f32 + 0.5, y as f32 + 0.5);
 
-                        // Is the point inside the triangle?
-                        if wa.min(wb).min(wc) >= 0.0 {
-                            let z_lerped = f32::lerp3(a.z, b.z, c.z, wa, wb, wc);
+                        // Calculate edge values
+                        let ea = edge(b_scr, c_scr, p);
+                        let eb = edge(c_scr, a_scr, p);
+                        let ec = edge(a_scr, b_scr, p);
 
-                            // Depth test
-                            if z_lerped < unsafe { *depth.get([x, y]) } {
-                                let vs_out_lerped = P::VsOut::lerp3(
-                                    a_vs_out.clone(),
-                                    b_vs_out.clone(),
-                                    c_vs_out.clone(),
-                                    wa,
-                                    wb,
-                                    wc,
-                                );
+                        // If the point falls outside the triangle, skip this fragment
+                        if ea < 0.0 || eb < 0.0 || ec < 0.0 {
+                            continue;
+                        }
 
-                                unsafe {
-                                    depth.set([x, y], z_lerped);
-                                    target.set([x, y], P::frag(uniform, &vs_out_lerped));
-                                }
+                        // Calculate vertex weights
+                        let wa = ea / area;
+                        let wb = eb / area;
+                        let wc = ec / area;
+
+                        // Calculate the interpolated depth of this fragment
+                        let z_lerped = f32::lerp3(a.z, b.z, c.z, wa, wb, wc);
+
+                        // Depth test
+                        if z_lerped < unsafe { *depth.get([x, y]) } {
+                            // Calculate the interpolated vertex attributes of this fragment
+                            let vs_out_lerped = P::VsOut::lerp3(
+                                a_vs_out.clone(),
+                                b_vs_out.clone(),
+                                c_vs_out.clone(),
+                                wa,
+                                wb,
+                                wc,
+                            );
+
+                            unsafe {
+                                depth.set([x, y], z_lerped);
+                                target.set([x, y], P::frag(uniform, &vs_out_lerped));
                             }
                         }
                     }

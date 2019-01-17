@@ -10,14 +10,14 @@ A 3D rendering crate that lets you write shaders in Rust.
 struct Triangle;
 
 impl Pipeline for Triangle {
-    type Uniform = Nothing;
+    type Uniform = ();
     type Vertex = [f32; 2];
-    type VsOut = Nothing;
+    type VsOut = ();
     type Pixel = [u8; 4];
 
     // Vertex shader
     fn vert(_: &Self::Uniform, pos: &Self::Vertex) -> ([f32; 3], Self::VsOut) {
-        ([pos[0], pos[1], 0.0], Nothing)
+        ([pos[0], pos[1], 0.0], ())
     }
 
     // Fragment shader
@@ -31,7 +31,7 @@ fn main() {
     let mut depth = Buffer2d::new([640, 480], 1.0);
 
     Triangle::draw::<rasterizer::Triangles<_>, _>(
-        &Nothing,
+        &(),
         &[
             [-1.0, -1.0],
             [ 1.0, -1.0],

@@ -4,12 +4,13 @@
 #[macro_use]
 extern crate alloc;
 
+pub mod interpolate;
 pub mod rasterizer;
 pub mod buffer;
 
-use core::ops::{Mul, Add};
-
-use self::rasterizer::Rasterizer;
+// Reexports
+pub use self::rasterizer::Rasterizer;
+pub use self::interpolate::Interpolate;
 
 pub trait Pipeline where Self: Sized {
     type Uniform;
@@ -38,35 +39,6 @@ pub trait Pipeline where Self: Sized {
     ) {
         R::draw::<Self, T>(uniform, vertices, target, &mut supplement)
     }
-}
-
-pub trait Interpolate {
-    #[inline(always)]
-    fn lerp2(a: Self, b: Self, x: f32, y: f32) -> Self;
-    #[inline(always)]
-    fn lerp3(a: Self, b: Self, c: Self, x: f32, y: f32, z: f32) -> Self;
-}
-
-// Default impl for certain types
-impl<T: Mul<f32, Output=T> + Add<Output=T>> Interpolate for T {
-    #[inline(always)]
-    fn lerp2(a: Self, b: Self, x: f32, y: f32) -> Self {
-        a * x + b * y
-    }
-
-    #[inline(always)]
-    fn lerp3(a: Self, b: Self, c: Self, x: f32, y: f32, z: f32) -> Self {
-        a * x + b * y + c * z
-    }
-}
-
-#[derive(Clone)]
-pub struct Nothing;
-impl Interpolate for Nothing {
-    #[inline(always)]
-    fn lerp2(_: Self, _: Self, _: f32, _: f32) -> Self { Nothing }
-    #[inline(always)]
-    fn lerp3(_: Self, _: Self, _: Self, _: f32, _: f32, _: f32) -> Self { Nothing }
 }
 
 pub trait Target {

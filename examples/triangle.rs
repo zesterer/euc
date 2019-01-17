@@ -2,20 +2,19 @@ use euc::{
     Pipeline,
     rasterizer,
     buffer::Buffer2d,
-    Nothing,
 };
 use minifb;
 
 struct Triangle;
 
 impl Pipeline for Triangle {
-    type Uniform = Nothing;
+    type Uniform = ();
     type Vertex = [f32; 3];
-    type VsOut = Nothing;
+    type VsOut = ();
     type Pixel = u32;
 
     fn vert(_: &Self::Uniform, pos: &[f32; 3]) -> ([f32; 3], Self::VsOut) {
-        (*pos, Nothing)
+        (*pos, ())
     }
 
     fn frag(_: &Self::Uniform, _: &Self::VsOut) -> Self::Pixel {
@@ -35,7 +34,7 @@ fn main() {
     let mut depth = Buffer2d::new([W, H], 1.0);
 
     Triangle::draw::<rasterizer::Triangles<_>, _>(
-        &Nothing,
+        &(),
         &[
             [-1.0, -1.0, 0.0],
             [ 1.0, -1.0, 0.0],
