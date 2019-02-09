@@ -3,6 +3,9 @@ use alloc::prelude::*;
 
 use crate::Target;
 
+/// A 2-dimensional buffer.
+///
+/// This type may be used to contain colour data, depth data, or arbitrary pixel data.
 pub struct Buffer2d<T> {
     items: Vec<T>,
     size: [usize; 2],

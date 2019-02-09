@@ -1,6 +1,10 @@
+/// A trait used to enable types to be interpolated throughout the rasterization process
 pub trait Interpolate {
+    /// Linearly scale two items of this type and sum them
     #[inline(always)]
     fn lerp2(a: Self, b: Self, x: f32, y: f32) -> Self;
+
+    /// Linearly scale three items of this type and sum them
     #[inline(always)]
     fn lerp3(a: Self, b: Self, c: Self, x: f32, y: f32, z: f32) -> Self;
 }
