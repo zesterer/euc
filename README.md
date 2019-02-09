@@ -85,6 +85,16 @@ euc = { version = "x.y.z", features = ["no_std"] }
 
 ## Non-Goals
 
-- Extreme optimisation
+- Extreme optimisation (although obvious low-hanging fruit will be picked)
 
 - Compliance/compatibility with an existing API (i.e: OpenGL)
+
+## License
+
+`euc` is distributed under either of:
+
+- Apache License, Version 2.0, (LICENSE-APACHE or http://www.apache.org/licenses/LICENSE-2.0)
+
+- MIT license (LICENSE-MIT or http://opensource.org/licenses/MIT)
+
+at the disgression of the user.
