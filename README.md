@@ -1,3 +1,9 @@
+[cr-badge]: https://img.shields.io/crates/v/euc.svg
+[cr]: https://crates.io/crates/euc
+[dl-badge]: https://img.shields.io/crates/d/euc.svg
+[doc-badge]: https://docs.rs/euc/badge.svg
+[doc]: https://docs.rs/euc
+
 # `euc`
 
 A 3D rendering crate that lets you write shaders in Rust.
