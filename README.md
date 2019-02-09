@@ -63,6 +63,16 @@ Cargo, by default, compiles Rust code in debug mode.
 In this mode, very few optimisations are made upon the code, and as a result the performance of software rendering tends to suffer.
 To experience this project with good performance, make sure to compile with the `--release` flag.
 
+## `no_std`
+
+`euc` can be compiled on platforms that lack standard library supports. This makes it ideal for rendering 3D graphics on embedded devices.
+You can enable `no_std` support by enabling the `no_std` feature in your `Cargo.toml` file like so:
+
+```
+[dependencies]
+euc = { version = "x.y.z", features = ["no_std"] }
+```
+
 ## Goals
 
 - Support programmable shaders written in Rust

@@ -58,7 +58,7 @@ fn main() {
         color.clear(0);
         depth.clear(1.0);
 
-        Cube::draw::<rasterizer::Triangles<_>, _>(
+        Cube::draw::<rasterizer::Triangles<_, rasterizer::BackfaceCullingEnabled>, _>(
             &(cam_mat, &[
                 Vec4::new(-1.0, -1.0, -1.0, 1.0), // 0
                 Vec4::new(-1.0, -1.0,  1.0, 1.0), // 1

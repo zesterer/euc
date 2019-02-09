@@ -48,8 +48,8 @@ impl<'a> Pipeline for Teapot<'a> {
         let diffuse = norm.dot(light_dir).max(0.0) * 0.5;
         let specular = light_dir.reflected(Vec3::from(*cam_mat * Vec4::from(*norm)).normalized()).dot(-Vec3::unit_z()).powf(20.0);
 
-        let light = (ambient + diffuse + specular).min(1.0);
-        let color = Rgba::new(1.0, 0.7, 0.1, 1.0) * light;
+        let light = ambient + diffuse + specular;
+        let color = (Rgba::new(1.0, 0.7, 0.1, 1.0) * light).clamped(Rgba::zero(), Rgba::one());
 
         let bytes = (color * 255.0).map(|e| e as u8).into_array();
         (bytes[2] as u32) << 0 |

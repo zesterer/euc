@@ -1,3 +1,4 @@
+#[cfg(feature = "no_std")]
 use alloc::prelude::*;
 
 use crate::Target;

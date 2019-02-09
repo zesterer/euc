@@ -4,6 +4,9 @@ version = "0.1.0"
 authors = ["Joshua Barretto <joshua.s.barretto@gmail.com>"]
 edition = "2018"
 
+[features]
+no_std = []
+
 [dependencies]
 vek = "0.9"
 
