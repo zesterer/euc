@@ -66,11 +66,11 @@ To experience this project with good performance, make sure to compile with the 
 ## `no_std`
 
 `euc` can be compiled on platforms that lack standard library supports. This makes it ideal for rendering 3D graphics on embedded devices.
-You can enable `no_std` support by enabling the `no_std` feature in your `Cargo.toml` file like so:
+You can enable `no_std` support by enabling the `nightly` feature in your `Cargo.toml` file like so:
 
 ```
 [dependencies]
-euc = { version = "x.y.z", features = ["no_std"] }
+euc = { version = "x.y.z", features = ["nightly"] }
 ```
 
 ## Goals

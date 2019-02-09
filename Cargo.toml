@@ -3,10 +3,11 @@ name = "euc"
 version = "0.1.0"
 description = "A software rendering crate that lets you write shaders with Rust"
 authors = ["Joshua Barretto <joshua.s.barretto@gmail.com>"]
+license = "Apache-2.0 AND MIT"
+repository = "https://github.com/zesterer/euc"
+readme = "README.md"
 edition = "2018"
-
-[features]
-no_std = []
+keywords = ["renderer", "3D", "graphics", "raster"]
 
 [dependencies]
 vek = "0.9"
@@ -14,3 +15,6 @@ vek = "0.9"
 [dev-dependencies]
 minifb = "0.11"
 tobj = "0.1"
+
+[features]
+nightly = []

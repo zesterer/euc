@@ -1,7 +1,7 @@
-#![cfg_attr(feature = "no_std", no_std)]
-#![cfg_attr(feature = "no_std", feature(alloc))]
+#![cfg_attr(feature = "nightly", no_std)]
+#![cfg_attr(feature = "nightly", feature(alloc))]
 
-#[cfg(feature = "no_std")]
+#[cfg(feature = "nightly")]
 #[macro_use]
 extern crate alloc;
 

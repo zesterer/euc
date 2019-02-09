@@ -1,4 +1,4 @@
-#[cfg(feature = "no_std")]
+#[cfg(feature = "nightly")]
 use alloc::prelude::*;
 
 use crate::Target;
