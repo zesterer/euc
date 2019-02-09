@@ -8,6 +8,7 @@ repository = "https://github.com/zesterer/euc"
 readme = "README.md"
 edition = "2018"
 keywords = ["renderer", "3D", "graphics", "raster"]
+exclude = ["misc"]
 
 [dependencies]
 vek = "0.9"
