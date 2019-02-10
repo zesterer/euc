@@ -82,7 +82,7 @@ fn main() {
         depth.clear(1.0);
 
         for model in &teapot.0 {
-            Teapot::draw::<rasterizer::Triangles<_>, _>(
+            Teapot::draw::<rasterizer::Lines<_>, _>(
                 &(
                     cam_mat,
                     &model.mesh.positions,

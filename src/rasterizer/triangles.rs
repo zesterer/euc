@@ -7,6 +7,10 @@ use crate::{
 };
 use self::super::*;
 
+/// A rasterizer that produces filled triangles from groups of 3 consecutive vertices.
+///
+/// Use the BackfaceCullingEnabled type parameter to enable backface culling.
+/// Use the BackfaceCullingDisabled type parameter to disable backface culling.
 pub struct Triangles<'a, D, B: BackfaceMode=BackfaceCullingEnabled> {
     phantom: PhantomData<(&'a D, B)>,
 }

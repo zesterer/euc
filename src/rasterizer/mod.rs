@@ -1,6 +1,8 @@
+mod lines;
 mod triangles;
 
 // Reexports
+pub use self::lines::Lines;
 pub use self::triangles::Triangles;
 
 use crate::{
