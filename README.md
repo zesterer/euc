@@ -1,21 +1,21 @@
-[cr-badge]: https://img.shields.io/crates/v/euc.svg
+[cr-badge]: https://img.shields.io/crates/v/:euc.svg
 [cr]: https://crates.io/crates/euc
-[dl-badge]: https://img.shields.io/crates/d/euc.svg
+[dl-badge]: https://img.shields.io/crates/d/:euc.svg
 [doc-badge]: https://docs.rs/euc/badge.svg
 [doc]: https://docs.rs/euc
 
 # `euc`
 
-A 3D rendering crate that lets you write shaders in Rust.
+A software rendering crate that lets you write shaders in Rust.
 
 ![Example rendering](misc/example.png)
 
 ## Example
 
 ```rust
-struct Triangle;
+struct Example;
 
-impl Pipeline for Triangle {
+impl Pipeline for Example {
     type Uniform = ();
     type Vertex = [f32; 2];
     type VsOut = ();
@@ -36,7 +36,7 @@ fn main() {
     let mut color = Buffer2d::new([640, 480], [0; 4]);
     let mut depth = Buffer2d::new([640, 480], 1.0);
 
-    Triangle::draw::<rasterizer::Triangles<_>, _>(
+    Example::draw::<Triangles<_>, _>(
         &(),
         &[
             [-1.0, -1.0],
@@ -49,25 +49,39 @@ fn main() {
 }
 ```
 
-See `examples/` for more code example.
+See `examples/` for more code examples.
 
 ## What is `euc`?
 
-`euc` is a versatile, simple to use crate that allows 3D rendering on the CPU.
+`euc` is a versatile, simple to use crate that allows 3D rendering on the CPU. It has a portable, compact design that makes it perfect for
+prototyping ideas, unit testing, or even simple realtime applications. `euc` is currently under active development.
 
 ## Why?
 
-- Modern graphics APIs are complex, verbose beasts. Rendering with the CPU means less complexity, less boilerplate and less verbosity: perfect for testing ideas.
+- Modern graphics APIs are complex, verbose beasts. Rendering with the CPU means less complexity, less boilerplate and less verbosity:
+  perfect for testing ideas.
 
-- Modern CPUs are fast enough to make simple 3D programs run at reasonable speeds (although they are of course no match for GPUs).
+- Modern CPUs are fast enough to make simple 3D programs run at reasonable speeds (although they are of course no match for GPUs). It's
+  possible to write surprisingly complex realtime 3D software with the CPU only.
 
-- Not requiring a GPU interface means that `euc` is incredibly portable. As a result, `euc` is `no_std`.
+- Not requiring a GPU interface means that `euc` is incredibly portable. As a result, `euc` is `no_std` (if you have a nightly compiler).
+
+- `euc` has consistent cross-platform behaviour and doesn't require a GPU to run. This makes it perfect for use as a unit testing tool.
+
+- Running on the CPU allows a more dynamic approach to data access.
+  For applications in which performance is less of a concern, `euc` lowers the barrier of low-level 3D development and allows for more novel
+  approaches to graphics rendering to be realised.
+
+## Coordinate System
+
+Where possible, `euc` tries to use a coordinate system similar in nature to OpenGL. If you're used to OpenGL, you'll have no trouble working
+with `euc`.
 
 ## Release Mode
 
-Cargo, by default, compiles Rust code in debug mode.
-In this mode, very few optimisations are made upon the code, and as a result the performance of software rendering tends to suffer.
-To experience this project with good performance, make sure to compile with the `--release` flag.
+Cargo, by default, compiles Rust code in debug mode. In this mode, very few optimisations are made upon the code, and as a result the
+performance of software rendering tends to suffer. To experience this project with good performance, make sure to compile with the
+`--release` flag.
 
 ## `no_std`
 
