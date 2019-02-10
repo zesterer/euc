@@ -1,11 +1,9 @@
-# `euc`
-
-A software rendering crate that lets you write shaders in Rust.
+# <img src="misc/banner.png" alt="Euc" width="100%" margin-left=auto margin-right=auto/>
 
 [![crates.io](https://img.shields.io/crates/v/euc.svg)](https://crates.io/crates/euc)
 [![crates.io](https://docs.rs/euc/badge.svg)](https://docs.rs/euc)
 
-![Example rendering](misc/example.png)
+# <img src="misc/example.png" alt="Utah teapot, rendered with Euc" width="100%"/>
 
 ## Example
 
