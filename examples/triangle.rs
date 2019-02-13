@@ -8,20 +8,19 @@ use minifb;
 struct Triangle;
 
 impl Pipeline for Triangle {
-    type Uniform = ();
     type Vertex = [f32; 3];
     type VsOut = ();
     type Pixel = u32;
 
     // Vertex shader
     // - Returns the 3D vertex location, and the VsOut value to be passed to the fragment shader
-    fn vert(_: &Self::Uniform, pos: &[f32; 3]) -> ([f32; 3], Self::VsOut) {
+    fn vert(&self, pos: &[f32; 3]) -> ([f32; 3], Self::VsOut) {
         (*pos, ())
     }
 
     // Fragment shader
     // - Returns (in this case) a u32
-    fn frag(_: &Self::Uniform, _: &Self::VsOut) -> Self::Pixel {
+    fn frag(&self, _: &Self::VsOut) -> Self::Pixel {
         let bytes = [255, 0, 0, 255]; // Red
 
         (bytes[2] as u32) << 0 |
@@ -38,8 +37,7 @@ fn main() {
     let mut color = Buffer2d::new([W, H], 0);
     let mut depth = Buffer2d::new([W, H], 1.0);
 
-    Triangle::draw::<rasterizer::Triangles<_>, _>(
-        &(),
+    Triangle.draw::<rasterizer::Triangles<_>, _>(
         &[
             [-1.0, -1.0, 0.0],
             [ 1.0, -1.0, 0.0],

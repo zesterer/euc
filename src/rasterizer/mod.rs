@@ -45,7 +45,7 @@ pub trait Rasterizer {
     /// Rasterize the provided vertex data and write the resulting fragment information to the
     /// target.
     fn draw<P: Pipeline, T: Target<Item=P::Pixel>>(
-        uniform: &P::Uniform,
+        pipeline: &P,
         vertices: &[P::Vertex],
         target: &mut T,
         supplement: &mut Self::Supplement,

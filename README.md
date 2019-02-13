@@ -11,18 +11,17 @@
 struct Example;
 
 impl Pipeline for Example {
-    type Uniform = ();
     type Vertex = [f32; 2];
     type VsOut = ();
     type Pixel = [u8; 4];
 
     // Vertex shader
-    fn vert(_: &Self::Uniform, pos: &Self::Vertex) -> ([f32; 3], Self::VsOut) {
+    fn vert(&self, pos: &Self::Vertex) -> ([f32; 3], Self::VsOut) {
         ([pos[0], pos[1], 0.0], ())
     }
 
     // Fragment shader
-    fn frag(_: &Self::Uniform, _: &Self::VsOut) -> Self::Pixel {
+    fn frag(&self, _: &Self::VsOut) -> Self::Pixel {
         [255, 0, 0, 255] // Red
     }
 }
@@ -31,8 +30,7 @@ fn main() {
     let mut color = Buffer2d::new([640, 480], [0; 4]);
     let mut depth = Buffer2d::new([640, 480], 1.0);
 
-    Example::draw::<Triangles<_>, _>(
-        &(),
+    Example.draw::<Triangles<_>, _>(
         &[
             [-1.0, -1.0],
             [ 1.0, -1.0],

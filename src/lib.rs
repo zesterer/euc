@@ -8,12 +8,15 @@ extern crate alloc;
 pub mod interpolate;
 pub mod rasterizer;
 pub mod buffer;
+//pub mod sampler;
 
 // Reexports
 pub use self::rasterizer::Rasterizer;
 pub use self::interpolate::Interpolate;
 
 /// Represents the high-level structure of a rendering pipeline.
+///
+/// Conventionally, uniform data is stores as state within the type itself.
 ///
 /// This governs the following things:
 ///
@@ -27,13 +30,6 @@ pub use self::interpolate::Interpolate;
 /// In the future, `euc` may extend its capabilities to include compute, geometry, and tesselation
 /// shaders.
 pub trait Pipeline where Self: Sized {
-    /// The type of the uniform data that is made available to all shader programs
-    ///
-    /// This does not change throughout the rendering process and usually consists of such things
-    /// as transformation matrices, textures, or vertex lookup tables when an vertex indexing is
-    /// used.
-    type Uniform;
-
     /// The type of the vertex shader input data.
     ///
     /// This usually consists of the vertex's position, normal, colour, texture coordinates, and
@@ -56,14 +52,14 @@ pub trait Pipeline where Self: Sized {
     /// The vertex shader
     #[inline(always)]
     fn vert(
-        uniform: &Self::Uniform,
+        &self,
         vertex: &Self::Vertex,
     ) -> ([f32; 3], Self::VsOut);
 
     /// The fragment shader
     #[inline(always)]
     fn frag(
-        uniform: &Self::Uniform,
+        &self,
         vs_out: &Self::VsOut,
     ) -> Self::Pixel;
 
@@ -73,12 +69,12 @@ pub trait Pipeline where Self: Sized {
     /// The supplement type is commonly used to represent additional surfaces required by the
     /// rasterizer, such as a depth buffer target.
     fn draw<R: Rasterizer, T: Target<Item=Self::Pixel>>(
-        uniform: &Self::Uniform,
+        &self,
         vertices: &[Self::Vertex],
         target: &mut T,
         mut supplement: <R as Rasterizer>::Supplement,
     ) {
-        R::draw::<Self, T>(uniform, vertices, target, &mut supplement)
+        R::draw::<Self, T>(self, vertices, target, &mut supplement)
     }
 }
 

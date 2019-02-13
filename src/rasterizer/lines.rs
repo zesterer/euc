@@ -17,7 +17,7 @@ impl<'a, D: Target<Item=f32>> Rasterizer for Lines<'a, D> {
     type Supplement = &'a mut D; // Depth buffer
 
     fn draw<P: Pipeline, T: Target<Item=P::Pixel>>(
-        uniform: &P::Uniform,
+        pipeline: &P,
         vertices: &[P::Vertex],
         target: &mut T,
         depth: &mut Self::Supplement,
@@ -32,8 +32,8 @@ impl<'a, D: Target<Item=f32>> Rasterizer for Lines<'a, D> {
             .chunks_exact(2)
             .for_each(|verts| {
                 // Compute vertex shader outputs
-                let (a, a_vs_out) = P::vert(uniform, &verts[0]);
-                let (b, b_vs_out) = P::vert(uniform, &verts[1]);
+                let (a, a_vs_out) = pipeline.vert(&verts[0]);
+                let (b, b_vs_out) = pipeline.vert(&verts[1]);
 
                 let a = Vec3::from(a);
                 let b = Vec3::from(b);
@@ -83,7 +83,7 @@ impl<'a, D: Target<Item=f32>> Rasterizer for Lines<'a, D> {
 
                             unsafe {
                                 depth.set([x, y], z_lerped);
-                                target.set([x, y], P::frag(uniform, &vs_out_lerped));
+                                target.set([x, y], pipeline.frag(&vs_out_lerped));
                             }
                         }
                         frac += dfrac;
@@ -123,7 +123,7 @@ impl<'a, D: Target<Item=f32>> Rasterizer for Lines<'a, D> {
 
                             unsafe {
                                 depth.set([x, y], z_lerped);
-                                target.set([x, y], P::frag(uniform, &vs_out_lerped));
+                                target.set([x, y], P::frag(pipeline, &vs_out_lerped));
                             }
                         }
                         frac += dfrac;
