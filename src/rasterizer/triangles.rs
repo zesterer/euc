@@ -117,7 +117,15 @@ impl<'a, D: Target<Item=f32>, B: BackfaceMode> Rasterizer for Triangles<'a, D, B
                         let z_lerped = f32::lerp3(a.z, b.z, c.z, wa, wb, wc);
 
                         // Depth test
-                        if z_lerped < unsafe { *depth.get([x, y]) } {
+                        let should_draw = match pipeline.get_depth_strategy() {
+                            DepthStrategy::IfLessWrite | DepthStrategy::IfLessNoWrite =>
+                                z_lerped < unsafe { *depth.get([x, y]) },
+                            DepthStrategy::IfMoreWrite | DepthStrategy::IfMoreNoWrite =>
+                                z_lerped > unsafe { *depth.get([x, y]) },
+                            DepthStrategy::None => true,
+                        };
+
+                        if should_draw {
                             // Calculate the interpolated vertex attributes of this fragment
                             let vs_out_lerped = P::VsOut::lerp3(
                                 a_vs_out.clone(),
@@ -129,7 +137,13 @@ impl<'a, D: Target<Item=f32>, B: BackfaceMode> Rasterizer for Triangles<'a, D, B
                             );
 
                             unsafe {
-                                depth.set([x, y], z_lerped);
+                                // Write depth
+                                match pipeline.get_depth_strategy() {
+                                    DepthStrategy::IfLessWrite | DepthStrategy::IfMoreWrite =>
+                                        depth.set([x, y], z_lerped),
+                                    _ => {},
+                                }
+
                                 target.set([x, y], pipeline.frag(&vs_out_lerped));
                             }
                         }

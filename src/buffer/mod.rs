@@ -1,3 +1,5 @@
+use core::fmt;
+
 #[cfg(feature = "nightly")]
 use alloc::prelude::*;
 
@@ -6,6 +8,7 @@ use crate::Target;
 /// A 2-dimensional buffer.
 ///
 /// This type may be used to contain colour data, depth data, or arbitrary pixel data.
+#[derive(Clone)]
 pub struct Buffer2d<T> {
     items: Vec<T>,
     size: [usize; 2],
@@ -46,5 +49,11 @@ impl<T: Clone> Target for Buffer2d<T> {
 impl<T> AsRef<[T]> for Buffer2d<T> {
     fn as_ref(&self) -> &[T] {
         &self.items
+    }
+}
+
+impl<T> fmt::Debug for Buffer2d<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Buffer2d(dimensions: {:?})", self.size)
     }
 }

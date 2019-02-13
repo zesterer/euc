@@ -2,6 +2,7 @@ use euc::{
     Pipeline,
     rasterizer,
     buffer::Buffer2d,
+    DepthStrategy,
 };
 use minifb;
 
@@ -14,12 +15,20 @@ impl Pipeline for Triangle {
 
     // Vertex shader
     // - Returns the 3D vertex location, and the VsOut value to be passed to the fragment shader
+    #[inline(always)]
     fn vert(&self, pos: &[f32; 3]) -> ([f32; 3], Self::VsOut) {
         (*pos, ())
     }
 
+    // Specify the depth buffer strategy used for each draw call
+    #[inline(always)]
+    fn get_depth_strategy(&self) -> DepthStrategy {
+        DepthStrategy::None
+    }
+
     // Fragment shader
     // - Returns (in this case) a u32
+    #[inline(always)]
     fn frag(&self, _: &Self::VsOut) -> Self::Pixel {
         let bytes = [255, 0, 0, 255]; // Red
 

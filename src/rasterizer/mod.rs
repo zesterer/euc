@@ -10,6 +10,15 @@ use crate::{
     Target,
 };
 
+#[derive(Copy, Clone, Debug)]
+pub enum DepthStrategy {
+    IfLessWrite,
+    IfMoreWrite,
+    IfLessNoWrite,
+    IfMoreNoWrite,
+    None,
+}
+
 /// This trait is for internal use only.
 pub trait BackfaceMode {
     const ENABLED: bool;

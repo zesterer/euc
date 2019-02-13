@@ -8,10 +8,9 @@ extern crate alloc;
 pub mod interpolate;
 pub mod rasterizer;
 pub mod buffer;
-//pub mod sampler;
 
 // Reexports
-pub use self::rasterizer::Rasterizer;
+pub use self::rasterizer::{Rasterizer, DepthStrategy};
 pub use self::interpolate::Interpolate;
 
 /// Represents the high-level structure of a rendering pipeline.
@@ -62,6 +61,16 @@ pub trait Pipeline where Self: Sized {
         &self,
         vs_out: &Self::VsOut,
     ) -> Self::Pixel;
+
+    /// A method used to determine what depth buffer strategy should be used when determining
+    /// fragment occlusion.
+    ///
+    /// This method will be called at minimum only once per draw call, but may be called an
+    /// arbitrary number of times.
+    #[inline(always)]
+    fn get_depth_strategy(&self) -> DepthStrategy {
+        DepthStrategy::IfLessWrite
+    }
 
     /// Perform a draw call with the given uniform data, vertex array, output target and supplement
     /// type.
