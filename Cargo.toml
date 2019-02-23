@@ -1,6 +1,6 @@
 [package]
 name = "euc"
-version = "0.1.0"
+version = "0.2.0"
 description = "A software rendering crate that lets you write shaders with Rust"
 authors = ["Joshua Barretto <joshua.s.barretto@gmail.com>"]
 license = "Apache-2.0 AND MIT"
