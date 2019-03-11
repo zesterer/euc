@@ -70,7 +70,7 @@ fn main() {
             Mat4::perspective_rh_no(1.3, 1.35, 0.01, 100.0) *
             Mat4::<f32>::scaling_3d(0.8) *
             Mat4::rotation_x((i as f32 * 0.002).sin() * 8.0) *
-            Mat4::rotation_y((i as f32 * 0.004).cos() * 4.0);
+            Mat4::rotation_y((i as f32 * 0.004).cos() * 4.0) *
             Mat4::rotation_z((i as f32 * 0.008).sin() * 2.0);
 
         color.clear(0);
