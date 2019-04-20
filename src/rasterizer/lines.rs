@@ -72,7 +72,7 @@ impl<'a, D: Target<Item=f32>> Rasterizer for Lines<'a, D> {
                         let (x, y) = (x as usize, y as usize);
 
                         // Depth test
-                        if z_lerped < unsafe { *depth.get([x, y]) } {
+                        if z_lerped < unsafe { depth.get([x, y]) } {
                             // Calculate the interpolated vertex attributes of this fragment
                             let vs_out_lerped = P::VsOut::lerp2(
                                 l_vs_out.clone(),
@@ -112,7 +112,7 @@ impl<'a, D: Target<Item=f32>> Rasterizer for Lines<'a, D> {
                         let (x, y) = (x as usize, y as usize);
 
                         // Depth test
-                        if z_lerped < unsafe { *depth.get([x, y]) } {
+                        if z_lerped < unsafe { depth.get([x, y]) } {
                             // Calculate the interpolated vertex attributes of this fragment
                             let vs_out_lerped = P::VsOut::lerp2(
                                 l_vs_out.clone(),

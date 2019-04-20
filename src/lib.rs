@@ -104,7 +104,7 @@ pub trait Target {
     /// Get a copy of the item at the specified location in the target. The validity of the
     /// location is not checked, and as such this method is marked `unsafe`.
     #[inline(always)]
-    unsafe fn get(&self, pos: [usize; 2]) -> &Self::Item;
+    unsafe fn get(&self, pos: [usize; 2]) -> Self::Item;
 
     /// Clear the target with copies of the specified item.
     fn clear(&mut self, fill: Self::Item);
