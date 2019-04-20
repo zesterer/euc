@@ -15,10 +15,10 @@ pub struct Buffer2d<T> {
 }
 
 impl<T: Clone> Buffer2d<T> {
-    pub fn new(size: [usize; 2], fill: T) -> Self {
+    pub fn new([width, height]: [usize; 2], fill: T) -> Self {
         Self {
-            items: vec![fill; size[0] * size[1]],
-            size,
+            items: vec![fill; width * height],
+            size: [width, height],
         }
     }
 }
@@ -32,23 +32,33 @@ impl<T: Clone> Target for Buffer2d<T> {
     }
 
     #[inline(always)]
-    unsafe fn set(&mut self, pos: [usize; 2], item: Self::Item) {
-        *self.items.get_unchecked_mut(pos[1] * self.size[0] + pos[0]) = item;
+    unsafe fn set(&mut self, [x, y]: [usize; 2], item: Self::Item) {
+        let [width, _] = self.size;
+        *self.items.get_unchecked_mut(y * width + x) = item;
     }
 
     #[inline(always)]
-    unsafe fn get(&self, pos: [usize; 2]) -> &Self::Item {
-        &self.items.get_unchecked(pos[1] * self.size[0] + pos[0])
+    unsafe fn get(&self, [x, y]: [usize; 2]) -> &Self::Item {
+        let [width, _] = self.size;
+        &self.items.get_unchecked(y * width + x)
     }
 
     fn clear(&mut self, fill: Self::Item) {
-        self.items = vec![fill; self.size[0] * self.size[1]];
+        for item in &mut self.items {
+            *item = fill.clone();
+        }
     }
 }
 
 impl<T> AsRef<[T]> for Buffer2d<T> {
     fn as_ref(&self) -> &[T] {
         &self.items
+    }
+}
+
+impl<T> AsMut<[T]> for Buffer2d<T> {
+    fn as_mut(&mut self) -> &mut [T] {
+        &mut self.items
     }
 }
 
