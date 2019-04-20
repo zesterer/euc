@@ -119,9 +119,9 @@ impl<'a, D: Target<Item=f32>, B: BackfaceMode> Rasterizer for Triangles<'a, D, B
                         // Depth test
                         let should_draw = match pipeline.get_depth_strategy() {
                             DepthStrategy::IfLessWrite | DepthStrategy::IfLessNoWrite =>
-                                z_lerped < unsafe { *depth.get([x, y]) },
+                                z_lerped < unsafe { depth.get([x, y]) },
                             DepthStrategy::IfMoreWrite | DepthStrategy::IfMoreNoWrite =>
-                                z_lerped > unsafe { *depth.get([x, y]) },
+                                z_lerped > unsafe { depth.get([x, y]) },
                             DepthStrategy::None => true,
                         };
 

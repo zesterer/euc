@@ -38,8 +38,8 @@ impl<T: Clone> Target for Texture2d<T> {
     }
 
     #[inline(always)]
-    unsafe fn get(&self, pos: [usize; 2]) -> &Self::Item {
-        &self.items.get_unchecked(pos[1] * self.size[0] + pos[0])
+    unsafe fn get(&self, pos: [usize; 2]) -> Self::Item {
+        self.items.get_unchecked(pos[1] * self.size[0] + pos[0]).clone()
     }
 
     fn clear(&mut self, fill: Self::Item) {

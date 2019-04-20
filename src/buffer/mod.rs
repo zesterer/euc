@@ -38,9 +38,9 @@ impl<T: Clone> Target for Buffer2d<T> {
     }
 
     #[inline(always)]
-    unsafe fn get(&self, [x, y]: [usize; 2]) -> &Self::Item {
+    unsafe fn get(&self, [x, y]: [usize; 2]) -> Self::Item {
         let [width, _] = self.size;
-        &self.items.get_unchecked(y * width + x)
+        self.items.get_unchecked(y * width + x).clone()
     }
 
     fn clear(&mut self, fill: Self::Item) {
