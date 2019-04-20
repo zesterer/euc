@@ -52,6 +52,12 @@ impl<T> AsRef<[T]> for Buffer2d<T> {
     }
 }
 
+impl<T> AsMut<[T]> for Buffer2d<T> {
+    fn as_mut(&mut self) -> &mut [T] {
+        &mut self.items
+    }
+}
+
 impl<T> fmt::Debug for Buffer2d<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Buffer2d(dimensions: {:?})", self.size)
