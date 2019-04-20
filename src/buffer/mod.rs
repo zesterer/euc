@@ -42,7 +42,9 @@ impl<T: Clone> Target for Buffer2d<T> {
     }
 
     fn clear(&mut self, fill: Self::Item) {
-        self.items = vec![fill; self.size[0] * self.size[1]];
+        for item in &mut self.items {
+            *item = fill.clone();
+        }
     }
 }
 
