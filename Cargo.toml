@@ -30,3 +30,7 @@ harness = false
 
 [features]
 nightly = []
+
+[profile.dev]
+# Optimize by default so we don't need to remember to always pass in --release
+opt-level = 3
