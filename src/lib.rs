@@ -53,7 +53,7 @@ pub trait Pipeline where Self: Sized {
     fn vert(
         &self,
         vertex: &Self::Vertex,
-    ) -> ([f32; 3], Self::VsOut);
+    ) -> ([f32; 4], Self::VsOut);
 
     /// The fragment shader
     #[inline(always)]

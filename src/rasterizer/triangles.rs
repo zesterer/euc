@@ -31,20 +31,27 @@ impl<'a, D: Target<Item=f32>, B: BackfaceMode> Rasterizer for Triangles<'a, D, B
         let half_scr = size.map(|e: usize| e as f32 * 0.5);
         const MIRROR: Vec2<f32> = Vec2 { x: 1.0, y: -1.0 };
 
+        let to_ndc = Mat3::from_row_arrays([
+            [2.0 / size.x as f32, 0.0, -1.0],
+            [0.0, -2.0 / size.y as f32, 1.0],
+            [0.0, 0.0, 1.0],
+        ]);
+
         vertices
             .chunks_exact(3)
             .for_each(|verts| {
                 // Compute vertex shader outputs
-                let (a, a_vs_out) = pipeline.vert(&verts[0]);
-                let (b, b_vs_out) = pipeline.vert(&verts[1]);
-                let (c, c_vs_out) = pipeline.vert(&verts[2]);
+                let (a_hom, a_vs_out) = pipeline.vert(&verts[0]);
+                let (b_hom, b_vs_out) = pipeline.vert(&verts[1]);
+                let (c_hom, c_vs_out) = pipeline.vert(&verts[2]);
 
-                let a = Vec3::from(a);
-                let b = Vec3::from(b);
-                let c = Vec3::from(c);
+                // Convert homogenous to euclidean coordinates
+                let a = Vec3::new(a_hom[0], a_hom[1], a_hom[2]) / a_hom[3];
+                let b = Vec3::new(b_hom[0], b_hom[1], b_hom[2]) / b_hom[3];
+                let c = Vec3::new(c_hom[0], c_hom[1], c_hom[2]) / c_hom[3];
 
                 // Backface culling
-                let ((a, a_vs_out), (c, c_vs_out)) =
+                let ((a, a_hom, a_vs_out), (c, c_hom, c_vs_out)) =
                     // Back face?
                     if (b - a).cross(c - a).z < 0.0 {
                         // If backface culling is enabled, just return: we're done with this tri.
@@ -52,29 +59,31 @@ impl<'a, D: Target<Item=f32>, B: BackfaceMode> Rasterizer for Triangles<'a, D, B
                             return;
                         } else {
                             // Reverse the vertex order
-                            ((c, c_vs_out), (a, a_vs_out))
+                            ((c, c_hom, c_vs_out), (a, a_hom, a_vs_out))
                         }
                     } else {
                         // Maintain vertex order
-                        ((a, a_vs_out), (c, c_vs_out))
+                        ((a, a_hom, a_vs_out), (c, c_hom, c_vs_out))
                     };
+
+                let fb_to_weights = {
+                    let c = Vec3::new(c_hom[0], c_hom[1], c_hom[3]);
+                    let ca = Vec3::new(a_hom[0], a_hom[1], a_hom[3]) - c;
+                    let cb = Vec3::new(b_hom[0], b_hom[1], b_hom[3]) - c;
+                    let n = ca.cross(cb);
+                    let rec_det = 1.0 / n.dot(c);
+                    // Compute matrix inverse
+                    Mat3::from_row_arrays([
+                        cb.cross(c).into_array(),
+                        c.cross(ca).into_array(),
+                        n.into_array(),
+                    ]) * rec_det * to_ndc
+                };
 
                 // Convert to framebuffer coordinates
                 let a_scr = half_scr * (Vec2::from(a) * MIRROR + 1.0);
                 let b_scr = half_scr * (Vec2::from(b) * MIRROR + 1.0);
                 let c_scr = half_scr * (Vec2::from(c) * MIRROR + 1.0);
-
-                #[inline(always)]
-                fn edge(a: Vec2<f32>, b: Vec2<f32>, c: Vec2<f32>) -> f32 {
-                    (c.x - a.x) * (b.y - a.y) - (c.y - a.y) * (b.x - a.x)
-                    //(b.x-a.x)*(c.y-a.y) - (b.y-a.y)*(c.x-a.x)
-                }
-
-                // // Find the x position of an edge given its y
-                // #[inline(always)]
-                // fn solve_x(a: Vec2<f32>, b: Vec2<f32>, y: f32) -> f32 {
-                //     a.x + (b.x - a.x) * (y - a.y) / (b.y - a.y)
-                // }
 
                 let a_px = a_scr.map(|e| e as i32);
                 let b_px = b_scr.map(|e| e as i32);
@@ -91,30 +100,25 @@ impl<'a, D: Target<Item=f32>, B: BackfaceMode> Rasterizer for Triangles<'a, D, B
                     .map(|e| e.max(0))
                     .map2(size, |e, sz| (e + 1).min(sz as i32) as usize);
 
-                let area = edge(a_scr, b_scr, c_scr);
-
                 for y in min.y..max.y {
                     for x in min.x..max.x {
                         // Where is the centre of the fragment?
-                        let p = Vec2::new(x as f32 + 0.5, y as f32 + 0.5);
+                        let p = Vec3::new(x as f32 + 0.5, y as f32 + 0.5, 1.0);
 
-                        // Calculate edge values
-                        let ea = edge(b_scr, c_scr, p);
-                        let eb = edge(c_scr, a_scr, p);
-                        let ec = edge(a_scr, b_scr, p);
+                        // Calculate vertex weights
+                        let weights_hom = fb_to_weights * p;
+                        let wa = weights_hom.x / weights_hom.z;
+                        let wb = weights_hom.y / weights_hom.z;
+                        let wc = 1.0 - wa - wb;
 
                         // If the point falls outside the triangle, skip this fragment
-                        if ea < 0.0 || eb < 0.0 || ec < 0.0 {
+                        if wa < 0.0 || wa > 1.0 || wb < 0.0 || wb > 1.0 || wc < 0.0 || wc > 1.0 {
                             continue;
                         }
 
-                        // Calculate vertex weights
-                        let wa = ea / area;
-                        let wb = eb / area;
-                        let wc = ec / area;
-
                         // Calculate the interpolated depth of this fragment
-                        let z_lerped = f32::lerp3(a.z, b.z, c.z, wa, wb, wc);
+                        let z_lerped = f32::lerp3(a_hom[2], b_hom[2], c_hom[2], wa, wb, wc) *
+                            weights_hom.z;
 
                         // Depth test
                         let should_draw = match pipeline.get_depth_strategy() {

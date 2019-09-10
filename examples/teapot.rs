@@ -22,13 +22,13 @@ impl<'a> Pipeline for Teapot<'a> {
     type Pixel = u32; // BGRA
 
     #[inline(always)]
-    fn vert(&self, v_index: &Self::Vertex) -> ([f32; 3], Self::VsOut) {
+    fn vert(&self, v_index: &Self::Vertex) -> ([f32; 4], Self::VsOut) {
         let v_index = *v_index as usize;
         // Find vertex position
         let v_pos = self.positions[v_index] + Vec3::new(0.0, -0.5, 0.0); // Offset to center the teapot
         (
             // Calculate vertex position in camera space
-            Vec3::from(self.mvp * Vec4::from_point(v_pos)).into_array(),
+            (self.mvp * Vec4::from_point(v_pos)).into_array(),
             // Find vertex normal
             self.normals[v_index],
         )
@@ -67,7 +67,8 @@ fn main() {
 
     for i in 0.. {
         let mvp =
-            Mat4::perspective_rh_no(1.3, 1.35, 0.01, 100.0) *
+            Mat4::perspective_fov_rh_no(1.3, W as f32, H as f32, 0.01, 100.0) *
+            Mat4::translation_3d(Vec3::new(0.0, 0.0, -1.5)) *
             Mat4::<f32>::scaling_3d(0.8) *
             Mat4::rotation_x((i as f32 * 0.002).sin() * 8.0) *
             Mat4::rotation_y((i as f32 * 0.004).cos() * 4.0) *

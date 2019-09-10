@@ -35,8 +35,9 @@ impl<'a, D: Target<Item=f32>> Rasterizer for Lines<'a, D> {
                 let (a, a_vs_out) = pipeline.vert(&verts[0]);
                 let (b, b_vs_out) = pipeline.vert(&verts[1]);
 
-                let a = Vec3::from(a);
-                let b = Vec3::from(b);
+                // Compute homogenized coordinates
+                let a = Vec3::new(a[0], a[1], a[2]) / a[3];
+                let b = Vec3::new(b[0], b[1], b[2]) / b[3];
 
                 // Convert to framebuffer coordinates
                 let a_scr = half_scr * (Vec2::from(a) * MIRROR + 1.0);

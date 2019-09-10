@@ -9,14 +9,14 @@ use minifb;
 struct Triangle;
 
 impl Pipeline for Triangle {
-    type Vertex = [f32; 3];
+    type Vertex = [f32; 4];
     type VsOut = ();
     type Pixel = u32;
 
     // Vertex shader
     // - Returns the 3D vertex location, and the VsOut value to be passed to the fragment shader
     #[inline(always)]
-    fn vert(&self, pos: &[f32; 3]) -> ([f32; 3], Self::VsOut) {
+    fn vert(&self, pos: &[f32; 4]) -> ([f32; 4], Self::VsOut) {
         (*pos, ())
     }
 
@@ -48,9 +48,9 @@ fn main() {
 
     Triangle.draw::<rasterizer::Triangles<_>, _>(
         &[
-            [-1.0, -1.0, 0.0],
-            [ 1.0, -1.0, 0.0],
-            [ 0.0,  1.0, 0.0],
+            [-1.0, -1.0, 0.0, 1.0],
+            [ 1.0, -1.0, 0.0, 1.0],
+            [ 0.0,  1.0, 0.0, 1.0],
         ],
         &mut color,
         &mut depth,
