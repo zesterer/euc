@@ -1,6 +1,6 @@
 [package]
 name = "euc"
-version = "0.3.0"
+version = "0.4.0"
 description = "A software rendering crate that lets you write shaders with Rust"
 authors = ["Joshua Barretto <joshua.s.barretto@gmail.com>", "Martin Sandfuchs <martin@cluginbuehl.ch>"]
 license = "Apache-2.0 AND MIT"
@@ -14,12 +14,12 @@ exclude = [
 ]
 
 [dependencies]
-vek = "0.9"
+vek = "0.9.9"
 
 [dev-dependencies]
 minifb = "0.11"
 tobj = "0.1"
-criterion = "0.2"
+criterion = "0.3"
 image = "0.22.2"
 
 [lib]
