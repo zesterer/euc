@@ -18,9 +18,9 @@ impl<'a> Pipeline for Cube<'a> {
     type Pixel = u32;
 
     #[inline(always)]
-    fn vert(&self, (v_index, v_color): &Self::Vertex) -> ([f32; 3], Self::VsOut) {
+    fn vert(&self, (v_index, v_color): &Self::Vertex) -> ([f32; 4], Self::VsOut) {
         (
-            Vec3::from(self.mvp * self.positions[*v_index]).into_array(),
+            (self.mvp * self.positions[*v_index]).into_array(),
             *v_color,
         )
     }
@@ -46,7 +46,8 @@ fn main() {
 
     for i in 0.. {
         let mvp =
-            Mat4::perspective_rh_no(1.3, 1.35, 0.01, 100.0) *
+            Mat4::perspective_fov_rh_no(1.3, W as f32, H as f32, 0.01, 100.0) *
+            Mat4::translation_3d(Vec3::new(0.0, 0.0, -2.0)) *
             Mat4::<f32>::scaling_3d(0.4) *
             Mat4::rotation_x((i as f32 * 0.002).sin() * 8.0) *
             Mat4::rotation_y((i as f32 * 0.004).cos() * 4.0) *
@@ -72,57 +73,57 @@ fn main() {
                 &[
                     // -x
                     (0, Rgba::green()),
-                    (2, Rgba::red()),
                     (3, Rgba::blue()),
+                    (2, Rgba::red()),
 
                     (0, Rgba::green()),
-                    (3, Rgba::blue()),
                     (1, Rgba::red()),
+                    (3, Rgba::blue()),
 
                     // +x
                     (7, Rgba::blue()),
-                    (6, Rgba::red()),
                     (4, Rgba::green()),
+                    (6, Rgba::red()),
 
                     (5, Rgba::red()),
-                    (7, Rgba::blue()),
                     (4, Rgba::green()),
+                    (7, Rgba::blue()),
 
                     // -y
                     (5, Rgba::blue()),
-                    (4, Rgba::green()),
                     (0, Rgba::red()),
+                    (4, Rgba::green()),
 
                     (1, Rgba::green()),
-                    (5, Rgba::blue()),
                     (0, Rgba::red()),
+                    (5, Rgba::blue()),
 
                     // +y
                     (2, Rgba::red()),
-                    (6, Rgba::green()),
                     (7, Rgba::blue()),
+                    (6, Rgba::green()),
 
                     (2, Rgba::red()),
-                    (7, Rgba::blue()),
                     (3, Rgba::green()),
+                    (7, Rgba::blue()),
 
                     // -z
                     (0, Rgba::red()),
-                    (4, Rgba::blue()),
                     (6, Rgba::green()),
+                    (4, Rgba::blue()),
 
                     (0, Rgba::red()),
-                    (6, Rgba::green()),
                     (2, Rgba::blue()),
+                    (6, Rgba::green()),
 
                     // +z
                     (7, Rgba::green()),
-                    (5, Rgba::blue()),
                     (1, Rgba::red()),
+                    (5, Rgba::blue()),
 
                     (3, Rgba::blue()),
-                    (7, Rgba::green()),
                     (1, Rgba::red()),
+                    (7, Rgba::green()),
                 ],
                 &mut color,
                 &mut depth,
