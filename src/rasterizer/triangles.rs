@@ -71,7 +71,11 @@ impl<'a, D: Target<Item=f32>, B: BackfaceMode> Rasterizer for Triangles<'a, D, B
                     let ca = Vec3::new(a_hom[0], a_hom[1], a_hom[3]) - c;
                     let cb = Vec3::new(b_hom[0], b_hom[1], b_hom[3]) - c;
                     let n = ca.cross(cb);
-                    let rec_det = 1.0 / n.dot(c);
+                    let rec_det = if n.magnitude_squared() > 0.0 {
+                        1.0 / n.dot(c)
+                    } else {
+                        1.0
+                    };
                     // Compute matrix inverse
                     Mat3::from_row_arrays([
                         cb.cross(c).into_array(),
@@ -79,6 +83,8 @@ impl<'a, D: Target<Item=f32>, B: BackfaceMode> Rasterizer for Triangles<'a, D, B
                         n.into_array(),
                     ]) * rec_det * to_ndc
                 };
+
+                debug_assert!(fb_to_weights.into_row_array().iter().all(|e| e.is_finite()));
 
                 // Convert to framebuffer coordinates
                 let a_scr = half_scr * (Vec2::from(a) * MIRROR + 1.0);
