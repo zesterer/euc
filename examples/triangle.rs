@@ -1,9 +1,4 @@
-use euc::{
-    Pipeline,
-    rasterizer,
-    buffer::Buffer2d,
-    DepthStrategy,
-};
+use euc::{buffer::Buffer2d, rasterizer, DepthStrategy, Pipeline};
 use minifb;
 
 struct Triangle;
@@ -32,10 +27,10 @@ impl Pipeline for Triangle {
     fn frag(&self, _: &Self::VsOut) -> Self::Pixel {
         let bytes = [255, 0, 0, 255]; // Red
 
-        (bytes[2] as u32) << 0 |
-        (bytes[1] as u32) << 8 |
-        (bytes[0] as u32) << 16 |
-        (bytes[3] as u32) << 24
+        (bytes[2] as u32) << 0
+            | (bytes[1] as u32) << 8
+            | (bytes[0] as u32) << 16
+            | (bytes[3] as u32) << 24
     }
 }
 
@@ -49,8 +44,8 @@ fn main() {
     Triangle.draw::<rasterizer::Triangles<_>, _>(
         &[
             [-1.0, -1.0, 0.0, 1.0],
-            [ 1.0, -1.0, 0.0, 1.0],
-            [ 0.0,  1.0, 0.0, 1.0],
+            [1.0, -1.0, 0.0, 1.0],
+            [0.0, 1.0, 0.0, 1.0],
         ],
         &mut color,
         &mut depth,

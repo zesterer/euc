@@ -5,13 +5,13 @@
 #[macro_use]
 extern crate alloc;
 
+pub mod buffer;
 pub mod interpolate;
 pub mod rasterizer;
-pub mod buffer;
 
 // Reexports
-pub use self::rasterizer::{Rasterizer, DepthStrategy};
 pub use self::interpolate::Interpolate;
+pub use self::rasterizer::{DepthStrategy, Rasterizer};
 
 /// Represents the high-level structure of a rendering pipeline.
 ///
@@ -28,7 +28,10 @@ pub use self::interpolate::Interpolate;
 ///
 /// In the future, `euc` may extend its capabilities to include compute, geometry, and tesselation
 /// shaders.
-pub trait Pipeline where Self: Sized {
+pub trait Pipeline
+where
+    Self: Sized,
+{
     /// The type of the vertex shader input data.
     ///
     /// This usually consists of the vertex's position, normal, colour, texture coordinates, and
@@ -50,17 +53,11 @@ pub trait Pipeline where Self: Sized {
 
     /// The vertex shader
     #[inline(always)]
-    fn vert(
-        &self,
-        vertex: &Self::Vertex,
-    ) -> ([f32; 4], Self::VsOut);
+    fn vert(&self, vertex: &Self::Vertex) -> ([f32; 4], Self::VsOut);
 
     /// The fragment shader
     #[inline(always)]
-    fn frag(
-        &self,
-        vs_out: &Self::VsOut,
-    ) -> Self::Pixel;
+    fn frag(&self, vs_out: &Self::VsOut) -> Self::Pixel;
 
     /// A method used to determine what depth buffer strategy should be used when determining
     /// fragment occlusion.
@@ -77,7 +74,7 @@ pub trait Pipeline where Self: Sized {
     ///
     /// The supplement type is commonly used to represent additional surfaces required by the
     /// rasterizer, such as a depth buffer target.
-    fn draw<R: Rasterizer, T: Target<Item=Self::Pixel>>(
+    fn draw<R: Rasterizer, T: Target<Item = Self::Pixel>>(
         &self,
         vertices: &[Self::Vertex],
         target: &mut T,
