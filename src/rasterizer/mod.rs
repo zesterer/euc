@@ -5,10 +5,7 @@ mod triangles;
 pub use self::lines::Lines;
 pub use self::triangles::Triangles;
 
-use crate::{
-    Pipeline,
-    Target,
-};
+use crate::{Pipeline, Target};
 
 #[derive(Copy, Clone, Debug)]
 pub enum DepthStrategy {
@@ -53,7 +50,7 @@ pub trait Rasterizer {
 
     /// Rasterize the provided vertex data and write the resulting fragment information to the
     /// target.
-    fn draw<P: Pipeline, T: Target<Item=P::Pixel>>(
+    fn draw<P: Pipeline, T: Target<Item = P::Pixel>>(
         pipeline: &P,
         vertices: &[P::Vertex],
         target: &mut T,
