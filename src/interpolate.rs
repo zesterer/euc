@@ -35,7 +35,9 @@ macro_rules! impl_interpolate_for_complex {
             #[inline(always)]
             fn lerp3(a: Self, b: Self, c: Self, x: f32, y: f32, z: f32) -> Self {
                 //a * x + b * y + c * z
-                a.map2(b.map2(c, |b, c| b.mul_add(y, c * z)), |a, bc| a.mul_add(x, bc))
+                a.map2(b.map2(c, |b, c| b.mul_add(y, c * z)), |a, bc| {
+                    a.mul_add(x, bc)
+                })
             }
         }
     };

@@ -1,9 +1,6 @@
-use std::{
-    path::Path,
-    time::Duration,
-};
 use criterion::{criterion_group, criterion_main, Bencher, Criterion};
 use euc::{buffer::Buffer2d, rasterizer, Pipeline};
+use std::{path::Path, time::Duration};
 use tobj;
 use vek::*;
 
@@ -98,7 +95,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function_over_inputs(
         "teapot",
         |b, &size| teapot_benchmark(b, size),
-        &[[32, 32], [200, 200]],//, [640, 480], [800, 600], [1024, 800]],
+        &[[32, 32], [200, 200]], //, [640, 480], [800, 600], [1024, 800]],
     );
 }
 

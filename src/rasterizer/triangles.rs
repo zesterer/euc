@@ -93,9 +93,21 @@ impl<'a, D: Target<Item = f32>, B: BackfaceMode> Rasterizer for Triangles<'a, D,
             debug_assert!(fb_to_weights.into_row_array().iter().all(|e| e.is_finite()));
 
             // Convert to framebuffer coordinates
-            let a_scr = half_scr * Vec2 { x: a.x + 1.0, y: a.y.mul_add(-1.0, 1.0) };
-            let b_scr = half_scr * Vec2 { x: b.x + 1.0, y: b.y.mul_add(-1.0, 1.0) };
-            let c_scr = half_scr * Vec2 { x: c.x + 1.0, y: c.y.mul_add(-1.0, 1.0) };
+            let a_scr = half_scr
+                * Vec2 {
+                    x: a.x + 1.0,
+                    y: a.y.mul_add(-1.0, 1.0),
+                };
+            let b_scr = half_scr
+                * Vec2 {
+                    x: b.x + 1.0,
+                    y: b.y.mul_add(-1.0, 1.0),
+                };
+            let c_scr = half_scr
+                * Vec2 {
+                    x: c.x + 1.0,
+                    y: c.y.mul_add(-1.0, 1.0),
+                };
 
             let a_px = a_scr.map(|e| e as i32);
             let b_px = b_scr.map(|e| e as i32);
@@ -128,7 +140,8 @@ impl<'a, D: Target<Item = f32>, B: BackfaceMode> Rasterizer for Triangles<'a, D,
                     }
 
                     // Calculate the interpolated depth of this fragment
-                    let z_lerped = f32::lerp3(a_hom[2], b_hom[2], c_hom[2], wa, wb, wc) * weights_hom.z;
+                    let z_lerped =
+                        f32::lerp3(a_hom[2], b_hom[2], c_hom[2], wa, wb, wc) * weights_hom.z;
 
                     let should_draw = if depth_test {
                         if depth_less {
