@@ -1,5 +1,7 @@
-use std::path::Path;
-
+use std::{
+    path::Path,
+    time::Duration,
+};
 use criterion::{criterion_group, criterion_main, Bencher, Criterion};
 use euc::{buffer::Buffer2d, rasterizer, Pipeline};
 use tobj;
@@ -18,13 +20,13 @@ impl<'a> Pipeline for Teapot<'a> {
     type Pixel = u32; // BGRA
 
     #[inline(always)]
-    fn vert(&self, v_index: &Self::Vertex) -> ([f32; 3], Self::VsOut) {
+    fn vert(&self, v_index: &Self::Vertex) -> ([f32; 4], Self::VsOut) {
         let v_index = *v_index as usize;
         // Find vertex position
         let v_pos = self.positions[v_index] + Vec3::new(0.0, -0.5, 0.0); // Offset to center the teapot
         (
             // Calculate vertex position in camera space
-            Vec3::from(self.mvp * Vec4::from_point(v_pos)).into_array(),
+            Vec4::from(self.mvp * Vec4::from_point(v_pos)).into_array(),
             // Find vertex normal
             self.normals[v_index],
         )
@@ -32,6 +34,7 @@ impl<'a> Pipeline for Teapot<'a> {
 
     #[inline(always)]
     fn frag(&self, norm: &Self::VsOut) -> Self::Pixel {
+        /*
         let ambient = 0.2;
         let diffuse = norm.dot(self.light_dir).max(0.0) * 0.5;
         let specular = self
@@ -42,6 +45,9 @@ impl<'a> Pipeline for Teapot<'a> {
 
         let light = ambient + diffuse + specular;
         let color = (Rgba::new(1.0, 0.7, 0.1, 1.0) * light).clamped(Rgba::zero(), Rgba::one());
+        */
+
+        let color = Rgba::broadcast(1.0);
 
         let bytes = (color * 255.0).map(|e| e as u8).into_array();
         (bytes[2] as u32) << 0
@@ -92,9 +98,16 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function_over_inputs(
         "teapot",
         |b, &size| teapot_benchmark(b, size),
-        &[[32, 32], [200, 200], [640, 480], [800, 600], [1024, 800]],
+        &[[32, 32], [200, 200]],//, [640, 480], [800, 600], [1024, 800]],
     );
 }
 
-criterion_group!(benches, criterion_benchmark);
+criterion_group! {
+    name = benches;
+    config = Criterion::default()
+        .sample_size(10)
+        .warm_up_time(Duration::from_millis(1000));
+    targets = criterion_benchmark
+}
+
 criterion_main!(benches);

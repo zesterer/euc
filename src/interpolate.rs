@@ -10,26 +10,42 @@ pub trait Interpolate {
 }
 
 // Default impls for certain types
-macro_rules! impl_interpolate_for {
+macro_rules! impl_interpolate_for_primitive {
     ($t:ty) => {
         impl Interpolate for $t {
             #[inline(always)]
             fn lerp2(a: Self, b: Self, x: f32, y: f32) -> Self {
-                a * x + b * y
+                a.mul_add(x, b * y)
             }
             #[inline(always)]
             fn lerp3(a: Self, b: Self, c: Self, x: f32, y: f32, z: f32) -> Self {
-                a * x + b * y + c * z
+                a.mul_add(x, b.mul_add(y, c * z))
             }
         }
     };
 }
-impl_interpolate_for!(f32);
-impl_interpolate_for!(vek::Vec2<f32>);
-impl_interpolate_for!(vek::Vec3<f32>);
-impl_interpolate_for!(vek::Vec4<f32>);
-impl_interpolate_for!(vek::Rgb<f32>);
-impl_interpolate_for!(vek::Rgba<f32>);
+macro_rules! impl_interpolate_for_complex {
+    ($t:ty) => {
+        impl Interpolate for $t {
+            #[inline(always)]
+            fn lerp2(a: Self, b: Self, x: f32, y: f32) -> Self {
+                //a * x + b * y
+                a.map2(b, |a, b| a.mul_add(x, b * y))
+            }
+            #[inline(always)]
+            fn lerp3(a: Self, b: Self, c: Self, x: f32, y: f32, z: f32) -> Self {
+                //a * x + b * y + c * z
+                a.map2(b.map2(c, |b, c| b.mul_add(y, c * z)), |a, bc| a.mul_add(x, bc))
+            }
+        }
+    };
+}
+impl_interpolate_for_primitive!(f32);
+impl_interpolate_for_complex!(vek::Vec2<f32>);
+impl_interpolate_for_complex!(vek::Vec3<f32>);
+impl_interpolate_for_complex!(vek::Vec4<f32>);
+impl_interpolate_for_complex!(vek::Rgb<f32>);
+impl_interpolate_for_complex!(vek::Rgba<f32>);
 
 impl<T: Interpolate, U: Interpolate> Interpolate for (T, U) {
     #[inline(always)]

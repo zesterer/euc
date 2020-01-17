@@ -29,13 +29,20 @@ impl<'a, D: Target<Item = f32>, B: BackfaceMode> Rasterizer for Triangles<'a, D,
 
         let size = Vec2::from(target.size());
         let half_scr = size.map(|e: usize| e as f32 * 0.5);
-        const MIRROR: Vec2<f32> = Vec2 { x: 1.0, y: -1.0 };
 
         let to_ndc = Mat3::from_row_arrays([
             [2.0 / size.x as f32, 0.0, -1.0],
             [0.0, -2.0 / size.y as f32, 1.0],
             [0.0, 0.0, 1.0],
         ]);
+
+        let (depth_test, depth_less, depth_write) = match pipeline.get_depth_strategy() {
+            DepthStrategy::IfLessWrite => (true, true, true),
+            DepthStrategy::IfLessNoWrite => (true, true, false),
+            DepthStrategy::IfMoreWrite => (true, false, true),
+            DepthStrategy::IfMoreNoWrite => (true, false, false),
+            DepthStrategy::None => (false, false, false),
+        };
 
         vertices.chunks_exact(3).for_each(|verts| {
             // Compute vertex shader outputs
@@ -86,9 +93,9 @@ impl<'a, D: Target<Item = f32>, B: BackfaceMode> Rasterizer for Triangles<'a, D,
             debug_assert!(fb_to_weights.into_row_array().iter().all(|e| e.is_finite()));
 
             // Convert to framebuffer coordinates
-            let a_scr = half_scr * (Vec2::from(a) * MIRROR + 1.0);
-            let b_scr = half_scr * (Vec2::from(b) * MIRROR + 1.0);
-            let c_scr = half_scr * (Vec2::from(c) * MIRROR + 1.0);
+            let a_scr = half_scr * Vec2 { x: a.x + 1.0, y: a.y.mul_add(-1.0, 1.0) };
+            let b_scr = half_scr * Vec2 { x: b.x + 1.0, y: b.y.mul_add(-1.0, 1.0) };
+            let c_scr = half_scr * Vec2 { x: c.x + 1.0, y: c.y.mul_add(-1.0, 1.0) };
 
             let a_px = a_scr.map(|e| e as i32);
             let b_px = b_scr.map(|e| e as i32);
@@ -116,24 +123,21 @@ impl<'a, D: Target<Item = f32>, B: BackfaceMode> Rasterizer for Triangles<'a, D,
                     let wb = weights_hom.y / weights_hom.z;
                     let wc = 1.0 - wa - wb;
 
-                    // If the point falls outside the triangle, skip this fragment
-                    if wa < 0.0 || wa > 1.0 || wb < 0.0 || wb > 1.0 || wc < 0.0 || wc > 1.0 {
+                    if (wa - 0.5).abs() > 0.5 || (wb - 0.5).abs() > 0.5 || (wc - 0.5).abs() > 0.5 {
                         continue;
                     }
 
                     // Calculate the interpolated depth of this fragment
-                    let z_lerped =
-                        f32::lerp3(a_hom[2], b_hom[2], c_hom[2], wa, wb, wc) * weights_hom.z;
+                    let z_lerped = f32::lerp3(a_hom[2], b_hom[2], c_hom[2], wa, wb, wc) * weights_hom.z;
 
-                    // Depth test
-                    let should_draw = match pipeline.get_depth_strategy() {
-                        DepthStrategy::IfLessWrite | DepthStrategy::IfLessNoWrite => {
+                    let should_draw = if depth_test {
+                        if depth_less {
                             z_lerped < unsafe { depth.get([x, y]) }
-                        }
-                        DepthStrategy::IfMoreWrite | DepthStrategy::IfMoreNoWrite => {
+                        } else {
                             z_lerped > unsafe { depth.get([x, y]) }
                         }
-                        DepthStrategy::None => true,
+                    } else {
+                        true
                     };
 
                     if should_draw {
@@ -149,11 +153,8 @@ impl<'a, D: Target<Item = f32>, B: BackfaceMode> Rasterizer for Triangles<'a, D,
 
                         unsafe {
                             // Write depth
-                            match pipeline.get_depth_strategy() {
-                                DepthStrategy::IfLessWrite | DepthStrategy::IfMoreWrite => {
-                                    depth.set([x, y], z_lerped)
-                                }
-                                _ => {}
+                            if depth_write {
+                                depth.set([x, y], z_lerped);
                             }
 
                             target.set([x, y], pipeline.frag(&vs_out_lerped));
