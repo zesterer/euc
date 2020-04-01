@@ -1,7 +1,5 @@
-#![cfg_attr(feature = "nightly", no_std)]
-#![cfg_attr(feature = "nightly", feature(alloc))]
+#![no_std]
 
-#[cfg(feature = "nightly")]
 #[macro_use]
 extern crate alloc;
 
@@ -52,11 +50,9 @@ where
     type Pixel: Clone;
 
     /// The vertex shader
-    #[inline(always)]
     fn vert(&self, vertex: &Self::Vertex) -> ([f32; 4], Self::VsOut);
 
     /// The fragment shader
-    #[inline(always)]
     fn frag(&self, vs_out: &Self::VsOut) -> Self::Pixel;
 
     /// A method used to determine what depth buffer strategy should be used when determining
@@ -90,17 +86,14 @@ pub trait Target {
     type Item: Clone;
 
     /// Get the dimensions of the target.
-    #[inline(always)]
     fn size(&self) -> [usize; 2];
 
     /// Set the item at the specified location in the target to the given item. The validity of the
     /// location is not checked, and as such this method is marked `unsafe`.
-    #[inline(always)]
     unsafe fn set(&mut self, pos: [usize; 2], item: Self::Item);
 
     /// Get a copy of the item at the specified location in the target. The validity of the
     /// location is not checked, and as such this method is marked `unsafe`.
-    #[inline(always)]
     unsafe fn get(&self, pos: [usize; 2]) -> Self::Item;
 
     /// Clear the target with copies of the specified item.

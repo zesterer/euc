@@ -1,7 +1,6 @@
 use core::fmt;
 
-#[cfg(feature = "nightly")]
-use alloc::prelude::*;
+use alloc::vec::Vec;
 
 use crate::Target;
 
