@@ -1,7 +1,6 @@
 use criterion::{criterion_group, criterion_main, Bencher, Criterion};
 use euc::{buffer::Buffer2d, rasterizer, Pipeline};
 use std::{path::Path, time::Duration};
-use tobj;
 use vek::*;
 
 struct Teapot<'a> {

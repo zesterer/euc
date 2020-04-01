@@ -1,5 +1,4 @@
 use euc::{buffer::Buffer2d, rasterizer, DepthStrategy, Pipeline};
-use minifb;
 
 struct Triangle;
 

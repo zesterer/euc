@@ -1,7 +1,9 @@
-use self::super::*;
+use super::*;
 use crate::{Interpolate, Pipeline, Target};
 use core::marker::PhantomData;
-use vek::*;
+#[cfg(not(feature = "std"))]
+use num_traits::Float;
+use vek::{Mat3, Vec2, Vec3};
 
 /// A rasterizer that produces filled triangles from groups of 3 consecutive vertices.
 ///

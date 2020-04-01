@@ -1,7 +1,5 @@
 use euc::{buffer::Buffer2d, rasterizer, Pipeline, Target};
-use minifb;
 use std::path::Path;
-use tobj;
 use vek::*;
 
 struct Teapot<'a> {

@@ -1,4 +1,4 @@
-use self::super::*;
+use super::*;
 use crate::{Interpolate, Pipeline, Target};
 use core::marker::PhantomData;
 use vek::*;

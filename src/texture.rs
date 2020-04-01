@@ -1,4 +1,3 @@
-#[cfg(feature = "nightly")]
 use alloc::prelude::*;
 
 use crate::{

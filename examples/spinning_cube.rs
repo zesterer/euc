@@ -1,5 +1,4 @@
 use euc::{buffer::Buffer2d, rasterizer, Pipeline, Target};
-use minifb;
 use vek::*;
 
 struct Cube<'a> {
