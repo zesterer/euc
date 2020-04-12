@@ -1,3 +1,43 @@
+//! [![crates.io](https://img.shields.io/crates/v/euc.svg)](https://crates.io/crates/euc)
+//! [![crates.io](https://docs.rs/euc/badge.svg)](https://docs.rs/euc)
+//!
+//! <img src="misc/example.png" alt="Utah teapot, rendered with Euc" width="100%"/>
+//!
+//! # Example
+//! ```ignore
+//! struct Example;
+//!
+//! impl Pipeline for Example {
+//!     type Vertex = [f32; 2];
+//!     type VsOut = ();
+//!     type Pixel = [u8; 4];
+//!
+//!     // Vertex shader
+//!     fn vert(&self, pos: &Self::Vertex) -> ([f32; 3], Self::VsOut) {
+//!         ([pos[0], pos[1], 0.0], ())
+//!     }
+//!
+//!     // Fragment shader
+//!     fn frag(&self, _: &Self::VsOut) -> Self::Pixel {
+//!         [255, 0, 0, 255] // Red
+//!     }
+//! }
+//!
+//! fn main() {
+//!     let mut color = Buffer2d::new([640, 480], [0; 4]);
+
+//!     Example.draw::<Triangles<(f32,)>, _>(
+//!         &[
+//!             [-1.0, -1.0],
+//!             [ 1.0, -1.0],
+//!             [ 0.0,  1.0],
+//!         ],
+//!         &mut color,
+//!         None,
+//!     );
+//! }
+//! ```
+
 #![no_std]
 
 #[macro_use]
@@ -74,9 +114,9 @@ where
         &self,
         vertices: &[Self::Vertex],
         target: &mut T,
-        mut supplement: <R as Rasterizer>::Supplement,
+        supplement: <R as Rasterizer>::Supplement,
     ) {
-        R::draw::<Self, T>(self, vertices, target, &mut supplement)
+        R::draw::<Self, T>(self, vertices, target, supplement)
     }
 }
 
@@ -98,4 +138,17 @@ pub trait Target {
 
     /// Clear the target with copies of the specified item.
     fn clear(&mut self, fill: Self::Item);
+}
+
+impl<T: Default + Clone> Target for (T,) {
+    type Item = T;
+
+    fn size(&self) -> [usize; 2] { [1; 2] }
+
+    unsafe fn set(&mut self, pos: [usize; 2], item: Self::Item) {}
+
+    unsafe fn get(&self, pos: [usize; 2]) -> Self::Item { Self::Item::default() }
+
+    fn clear(&mut self, fill: Self::Item) {}
+
 }

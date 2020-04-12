@@ -10,19 +10,21 @@ pub struct Lines<'a, D> {
 
 impl<'a, D: Target<Item = f32>> Rasterizer for Lines<'a, D> {
     type Input = [f32; 3]; // Vertex coordinates
-    type Supplement = &'a mut D; // Depth buffer
+    type Supplement = Option<&'a mut D>; // Depth buffer
 
     fn draw<P: Pipeline, T: Target<Item = P::Pixel>>(
         pipeline: &P,
         vertices: &[P::Vertex],
         target: &mut T,
-        depth: &mut Self::Supplement,
+        mut depth: Self::Supplement,
     ) {
-        assert_eq!(
-            target.size(),
-            depth.size(),
-            "Target and depth buffers are not similarly sized!"
-        );
+        if let Some(depth) = depth.as_ref() {
+            assert_eq!(
+                target.size(),
+                depth.size(),
+                "Target and depth buffers are not similarly sized!"
+            );
+        }
 
         let size = Vec2::from(target.size());
         let half_scr = size.map(|e: usize| e as f32 * 0.5);
@@ -76,13 +78,13 @@ impl<'a, D: Target<Item = f32>> Rasterizer for Lines<'a, D> {
                     let (x, y) = (x as usize, y as usize);
 
                     // Depth test
-                    if z_lerped < unsafe { depth.get([x, y]) } {
+                    if depth.as_ref().map(|depth| z_lerped <= unsafe { depth.get([x, y]) }).unwrap_or(true) {
                         // Calculate the interpolated vertex attributes of this fragment
                         let vs_out_lerped =
                             P::VsOut::lerp2(a_vs_out.clone(), b_vs_out.clone(), 1.0 - s, s);
 
                         unsafe {
-                            depth.set([x, y], z_lerped);
+                            depth.as_mut().map(|depth| depth.set([x, y], z_lerped));
                             target.set([x, y], pipeline.frag(&vs_out_lerped));
                         }
                     }
@@ -113,13 +115,13 @@ impl<'a, D: Target<Item = f32>> Rasterizer for Lines<'a, D> {
                     let (x, y) = (x as usize, y as usize);
 
                     // Depth test
-                    if z_lerped < unsafe { depth.get([x, y]) } {
+                    if depth.as_ref().map(|depth| z_lerped < unsafe { depth.get([x, y]) }).unwrap_or(true) {
                         // Calculate the interpolated vertex attributes of this fragment
                         let vs_out_lerped =
                             P::VsOut::lerp2(a_vs_out.clone(), b_vs_out.clone(), 1.0 - s, s);
 
                         unsafe {
-                            depth.set([x, y], z_lerped);
+                            depth.as_mut().map(|depth| depth.set([x, y], z_lerped));
                             target.set([x, y], P::frag(pipeline, &vs_out_lerped));
                         }
                     }

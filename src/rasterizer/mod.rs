@@ -54,6 +54,6 @@ pub trait Rasterizer {
         pipeline: &P,
         vertices: &[P::Vertex],
         target: &mut T,
-        supplement: &mut Self::Supplement,
+        supplement: Self::Supplement,
     );
 }

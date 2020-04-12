@@ -89,7 +89,7 @@ fn main() {
             normals: &normals,
             light_dir: Vec3::new(1.0, 1.0, 1.0).normalized(),
         }
-        .draw::<rasterizer::Triangles<_>, _>(indices, &mut color, &mut depth);
+        .draw::<rasterizer::Triangles<_>, _>(indices, &mut color, Some(&mut depth));
 
         if win.is_open() {
             win.update_with_buffer(color.as_ref()).unwrap();

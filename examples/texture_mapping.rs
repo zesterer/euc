@@ -144,7 +144,7 @@ fn main() {
                 20, 23, 21, 21, 23, 22,
             ],
             &mut color,
-            &mut depth,
+            Some(&mut depth),
         );
 
         win.update_with_buffer(color.as_ref()).unwrap();

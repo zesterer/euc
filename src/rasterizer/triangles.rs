@@ -15,19 +15,21 @@ pub struct Triangles<'a, D, B: BackfaceMode = BackfaceCullingEnabled> {
 
 impl<'a, D: Target<Item = f32>, B: BackfaceMode> Rasterizer for Triangles<'a, D, B> {
     type Input = [f32; 3]; // Vertex coordinates
-    type Supplement = &'a mut D; // Depth buffer
+    type Supplement = Option<&'a mut D>; // Depth buffer
 
     fn draw<P: Pipeline, T: Target<Item = P::Pixel>>(
         pipeline: &P,
         vertices: &[P::Vertex],
         target: &mut T,
-        depth: &mut Self::Supplement,
+        mut depth: Self::Supplement,
     ) {
-        assert_eq!(
-            target.size(),
-            depth.size(),
-            "Target and depth buffers are not similarly sized!"
-        );
+        if let Some(depth) = depth.as_ref() {
+            assert_eq!(
+                target.size(),
+                depth.size(),
+                "Target and depth buffers are not similarly sized!"
+            );
+        }
 
         let size = Vec2::from(target.size());
         let half_scr = size.map(|e: usize| e as f32 * 0.5);
@@ -147,9 +149,9 @@ impl<'a, D: Target<Item = f32>, B: BackfaceMode> Rasterizer for Triangles<'a, D,
 
                     let should_draw = if depth_test {
                         if depth_less {
-                            z_lerped < unsafe { depth.get([x, y]) }
+                            depth.as_ref().map(|depth| z_lerped <= unsafe { depth.get([x, y]) }).unwrap_or(true)
                         } else {
-                            z_lerped > unsafe { depth.get([x, y]) }
+                            depth.as_ref().map(|depth| z_lerped >= unsafe { depth.get([x, y]) }).unwrap_or(true)
                         }
                     } else {
                         true
@@ -169,7 +171,7 @@ impl<'a, D: Target<Item = f32>, B: BackfaceMode> Rasterizer for Triangles<'a, D,
                         unsafe {
                             // Write depth
                             if depth_write {
-                                depth.set([x, y], z_lerped);
+                                depth.as_mut().map(|depth| depth.set([x, y], z_lerped));
                             }
 
                             target.set([x, y], pipeline.frag(&vs_out_lerped));

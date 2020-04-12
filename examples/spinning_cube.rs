@@ -105,7 +105,7 @@ fn main() {
                 (7, Rgba::green()),
             ],
             &mut color,
-            &mut depth,
+            Some(&mut depth),
         );
 
         if win.is_open() {

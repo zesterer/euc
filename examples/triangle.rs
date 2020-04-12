@@ -38,16 +38,15 @@ const H: usize = 480;
 
 fn main() {
     let mut color = Buffer2d::new([W, H], 0);
-    let mut depth = Buffer2d::new([W, H], 1.0);
 
-    Triangle.draw::<rasterizer::Triangles<_>, _>(
+    Triangle.draw::<rasterizer::Triangles<(f32,)>, _>(
         &[
             [-1.0, -1.0, 0.0, 1.0],
             [1.0, -1.0, 0.0, 1.0],
             [0.0, 1.0, 0.0, 1.0],
         ],
         &mut color,
-        &mut depth,
+        None,
     );
 
     let mut win = minifb::Window::new("Triangle", W, H, minifb::WindowOptions::default()).unwrap();
