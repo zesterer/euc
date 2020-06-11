@@ -1,6 +1,6 @@
 [package]
 name = "euc"
-version = "0.5.0"
+version = "0.5.1"
 description = "A software rendering crate that lets you write shaders with Rust"
 authors = ["Joshua Barretto <joshua.s.barretto@gmail.com>", "Martin Sandfuchs <martin@cluginbuehl.ch>"]
 license = "Apache-2.0 AND MIT"
@@ -15,7 +15,7 @@ exclude = [
 
 [dependencies]
 num-traits = { version = "0.2.11", default-features = false, optional = true }
-vek = { version = "0.10.0", default-features = false, features = ["rgb", "rgba"] }
+vek = { version = "0.11.2", default-features = false, features = ["rgb", "rgba"] }
 
 [features]
 default = ["std"]
