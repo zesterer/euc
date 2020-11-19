@@ -48,8 +48,10 @@ pub mod interpolate;
 pub mod rasterizer;
 
 // Reexports
-pub use self::interpolate::Interpolate;
-pub use self::rasterizer::{DepthStrategy, Rasterizer};
+pub use self::{
+    interpolate::Interpolate,
+    rasterizer::{DepthStrategy, Rasterizer},
+};
 
 /// Represents the high-level structure of a rendering pipeline.
 ///
@@ -143,12 +145,15 @@ pub trait Target {
 impl<T: Default + Clone> Target for (T,) {
     type Item = T;
 
-    fn size(&self) -> [usize; 2] { [1; 2] }
+    fn size(&self) -> [usize; 2] {
+        [1; 2]
+    }
 
-    unsafe fn set(&mut self, pos: [usize; 2], item: Self::Item) {}
+    unsafe fn set(&mut self, _pos: [usize; 2], _item: Self::Item) {}
 
-    unsafe fn get(&self, pos: [usize; 2]) -> Self::Item { Self::Item::default() }
+    unsafe fn get(&self, _pos: [usize; 2]) -> Self::Item {
+        Self::Item::default()
+    }
 
-    fn clear(&mut self, fill: Self::Item) {}
-
+    fn clear(&mut self, _fill: Self::Item) {}
 }

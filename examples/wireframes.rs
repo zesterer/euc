@@ -82,7 +82,7 @@ fn main() {
 
     let mut win = minifb::Window::new("Teapot", W, H, minifb::WindowOptions::default()).unwrap();
 
-    let obj = tobj::load_obj(&Path::new("examples/data/teapot.obj")).unwrap();
+    let obj = tobj::load_obj(&Path::new("examples/data/teapot.obj"), false).unwrap();
     let indices = &obj.0[0].mesh.indices;
     let wf_indices: Vec<_> = indices
         .chunks(3)
@@ -113,7 +113,7 @@ fn main() {
         depth.clear(1.0);
 
         Teapot {
-            mvp: mvp.clone(),
+            mvp: mvp,
             positions: &positions,
             normals: &normals,
             light_dir: Vec3::new(1.0, 1.0, 1.0).normalized(),
@@ -127,7 +127,7 @@ fn main() {
         .draw::<rasterizer::Lines<_>, _>(&wf_indices, &mut color, Some(&mut depth));
 
         if win.is_open() {
-            win.update_with_buffer(color.as_ref()).unwrap();
+            win.update_with_buffer(color.as_ref(), W, H).unwrap();
         } else {
             break;
         }

@@ -57,7 +57,7 @@ fn main() {
 
     let mut win = minifb::Window::new("Teapot", W, H, minifb::WindowOptions::default()).unwrap();
 
-    let obj = tobj::load_obj(&Path::new("examples/data/teapot.obj")).unwrap();
+    let obj = tobj::load_obj(&Path::new("examples/data/teapot.obj"), false).unwrap();
     let indices = &obj.0[0].mesh.indices;
     let positions = obj.0[0]
         .mesh
@@ -92,7 +92,7 @@ fn main() {
         .draw::<rasterizer::Triangles<_>, _>(indices, &mut color, Some(&mut depth));
 
         if win.is_open() {
-            win.update_with_buffer(color.as_ref()).unwrap();
+            win.update_with_buffer(color.as_ref(), W, H).unwrap();
         } else {
             break;
         }

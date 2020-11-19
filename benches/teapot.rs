@@ -22,7 +22,7 @@ impl<'a> Pipeline for Teapot<'a> {
         let v_pos = self.positions[v_index] + Vec3::new(0.0, -0.5, 0.0); // Offset to center the teapot
         (
             // Calculate vertex position in camera space
-            Vec4::from(self.mvp * Vec4::from_point(v_pos)).into_array(),
+            (self.mvp * Vec4::from_point(v_pos)).into_array(),
             // Find vertex normal
             self.normals[v_index],
         )
@@ -57,7 +57,7 @@ fn teapot_benchmark(b: &mut Bencher, &[width, height]: &[usize; 2]) {
     let mut color = Buffer2d::new([width, height], 0);
     let mut depth = Buffer2d::new([width, height], 1.0);
 
-    let obj = tobj::load_obj(&Path::new("examples/data/teapot.obj")).unwrap();
+    let obj = tobj::load_obj(&Path::new("examples/data/teapot.obj"), false).unwrap();
     let indices = &obj.0[0].mesh.indices;
     let positions = obj.0[0]
         .mesh
@@ -86,7 +86,7 @@ fn teapot_benchmark(b: &mut Bencher, &[width, height]: &[usize; 2]) {
     };
 
     b.iter(|| {
-        shader.draw::<rasterizer::Triangles<_>, _>(indices, &mut color, &mut depth);
+        shader.draw::<rasterizer::Triangles<_>, _>(indices, &mut color, Some(&mut depth));
     });
 }
 

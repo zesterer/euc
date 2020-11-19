@@ -51,6 +51,6 @@ fn main() {
 
     let mut win = minifb::Window::new("Triangle", W, H, minifb::WindowOptions::default()).unwrap();
     while win.is_open() {
-        win.update_with_buffer(color.as_ref()).unwrap();
+        win.update_with_buffer(color.as_ref(), W, H).unwrap();
     }
 }

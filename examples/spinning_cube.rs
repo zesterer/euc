@@ -109,7 +109,7 @@ fn main() {
         );
 
         if win.is_open() {
-            win.update_with_buffer(color.as_ref()).unwrap();
+            win.update_with_buffer(color.as_ref(), W, H).unwrap();
         } else {
             break;
         }
