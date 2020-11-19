@@ -113,7 +113,7 @@ fn main() {
         Vec2::new(1.0, 1.0),
     ];
     let texture = match image::open("examples/data/checkerboard.png") {
-        Ok(image) => image.to_rgb(),
+        Ok(image) => image.to_rgb8(),
         Err(err) => {
             eprintln!("{}", err);
             return;
@@ -147,7 +147,7 @@ fn main() {
             Some(&mut depth),
         );
 
-        win.update_with_buffer(color.as_ref()).unwrap();
+        win.update_with_buffer(color.as_ref(), W, H).unwrap();
         i += 1;
     }
 }
