@@ -11,12 +11,12 @@ struct Cube<'a> {
 
 impl<'a> Pipeline for Cube<'a> {
     type Vertex = usize;
-    type VsOut = Vec2<f32>;
+    type VertexAttr = Vec2<f32>;
     type Primitives = TriangleList;
     type Fragment = u32;
 
     #[inline]
-    fn vertex_shader(&self, v_index: &Self::Vertex) -> ([f32; 4], Self::VsOut) {
+    fn vertex_shader(&self, v_index: &Self::Vertex) -> ([f32; 4], Self::VertexAttr) {
         (
             (self.mvp * self.positions[*v_index]).into_array(),
             self.uvs[*v_index],
@@ -24,7 +24,7 @@ impl<'a> Pipeline for Cube<'a> {
     }
 
     #[inline]
-    fn fragment_shader(&self, v_uv: Self::VsOut) -> Self::Fragment {
+    fn fragment_shader(&self, v_uv: Self::VertexAttr) -> Self::Fragment {
         u32::from_le_bytes(self.sampler.sample(v_uv.into_array()).0)
     }
 }
@@ -132,12 +132,11 @@ fn main() {
         };
         cube.render(
             &[
-                // z = 1
-                0, 3, 1, 1, 3, 2, // z = -1
-                4, 5, 7, 5, 6, 7, // y = 1
-                8, 11, 9, 9, 11, 10, // y = -1,
-                12, 13, 15, 13, 14, 15, // x = 1,
-                16, 17, 19, 17, 18, 19, // x = -1,
+                0, 3, 1, 1, 3, 2,
+                4, 5, 7, 5, 6, 7,
+                8, 11, 9, 9, 11, 10,
+                12, 13, 15, 13, 14, 15,
+                16, 17, 19, 17, 18, 19,
                 20, 23, 21, 21, 23, 22,
             ],
             CullMode::Back,

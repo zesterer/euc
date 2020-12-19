@@ -2,7 +2,7 @@ pub mod triangles;
 
 pub use self::triangles::Triangles;
 
-use crate::Pipeline;
+use crate::CoordinateMode;
 
 /// The face culling strategy used during rendering.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
@@ -41,17 +41,16 @@ pub trait Rasterizer: Default {
     ///
     /// `emit_fragment` must only be called with fragment positions that are valid for the `target_size` parameter
     /// provided. Undefined behaviour can be assumed to occur if this is not upheld.
-    unsafe fn rasterize<P, I, F>(
+    unsafe fn rasterize<V, I, F>(
         &self,
-        pipeline: &P,
         vertices: I,
         target_size: [usize; 2],
         principal_x: bool,
+        coordinate_mode: CoordinateMode,
         config: Self::Config,
         emit_fragment: F,
     )
     where
-        P: Pipeline,
-        I: Iterator<Item = ([f32; 4], P::VsOut)>,
-        F: FnMut([usize; 2], &[f32], &[P::VsOut], f32);
+        I: Iterator<Item = ([f32; 4], V)>,
+        F: FnMut([usize; 2], &[f32], &[V], f32);
 }

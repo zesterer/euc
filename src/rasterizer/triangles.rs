@@ -1,5 +1,5 @@
 use super::*;
-use crate::Handedness;
+use crate::{Handedness, CoordinateMode};
 use vek::*;
 
 /// A rasterizer that produces filled triangles.
@@ -9,19 +9,18 @@ pub struct Triangles;
 impl Rasterizer for Triangles {
     type Config = CullMode;
 
-    unsafe fn rasterize<P, I, F>(
+    unsafe fn rasterize<V, I, F>(
         &self,
-        pipeline: &P,
         mut vertices: I,
         target_size: [usize; 2],
         principal_x: bool,
+        coordinate_mode: CoordinateMode,
         cull_mode: CullMode,
         mut emit_fragment: F,
     )
     where
-        P: Pipeline,
-        I: Iterator<Item = ([f32; 4], P::VsOut)>,
-        F: FnMut([usize; 2], &[f32], &[P::VsOut], f32),
+        I: Iterator<Item = ([f32; 4], V)>,
+        F: FnMut([usize; 2], &[f32], &[V], f32),
     {
         let cull_dir = match cull_mode {
             CullMode::None => None,
@@ -29,9 +28,7 @@ impl Rasterizer for Triangles {
             CullMode::Front => Some(-1.0),
         };
 
-        let coord_mode = pipeline.coordinate_mode();
-
-        let flip = match coord_mode.handedness {
+        let flip = match coordinate_mode.handedness {
             Handedness::Left => Vec2::new(1.0, 1.0),
             Handedness::Right => Vec2::new(1.0, -1.0),
         };
@@ -132,7 +129,7 @@ impl Rasterizer for Triangles {
                 let z: f32 = verts_hom.map2(w, |v, w| v.z * w).sum() * w_hom.z;
 
                 // Don't use `.contains(&z)`, it isn't inclusive
-                if z >= coord_mode.clip_range.start && z <= coord_mode.clip_range.end {
+                if z >= coordinate_mode.clip_range.start && z <= coordinate_mode.clip_range.end {
                     emit_fragment([x, y], w.as_slice(), verts_out.as_slice(), z);
                 }
             }

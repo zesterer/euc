@@ -72,7 +72,7 @@ where
 
     #[inline(always)]
     fn sample(&self, index: [Self::Index; N]) -> Self::Sample {
-        self.raw_texture().read(I::denormalize_array(index, self.raw_texture().size()))
+        unsafe { self.raw_texture().read_unchecked(I::denormalize_array(index, self.raw_texture().size())) }
     }
 
     #[inline(always)]

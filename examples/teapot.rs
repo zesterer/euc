@@ -11,46 +11,44 @@ struct Teapot<'a> {
 }
 
 #[derive(Add, Mul, Clone)]
-struct VsOut {
+struct VertexAttr {
     wpos: Vec3<f32>,
     wnorm: Vec3<f32>,
 }
 
 impl<'a> Pipeline for Teapot<'a> {
     type Vertex = wavefront::Vertex<'a>;
-    type VsOut = VsOut;
+    type VertexAttr = VertexAttr;
     type Primitives = TriangleList;
     type Fragment = u32;
 
     fn depth_mode(&self) -> DepthMode { DepthMode::LESS_WRITE }
 
     #[inline(always)]
-    fn vertex_shader(&self, vertex: &Self::Vertex) -> ([f32; 4], Self::VsOut) {
+    fn vertex_shader(&self, vertex: &Self::Vertex) -> ([f32; 4], Self::VertexAttr) {
         let wpos = self.m * Vec4::from_point(Vec3::from(vertex.position()));
         let wnorm = self.m * Vec4::from_direction(-Vec3::from(vertex.normal().unwrap()));
         (
             (self.p * self.v * wpos).into_array(),
-            VsOut { wpos: wpos.xyz(), wnorm: wnorm.xyz() },
+            VertexAttr { wpos: wpos.xyz(), wnorm: wnorm.xyz() },
         )
     }
 
     #[inline(always)]
-    fn fragment_shader(&self, VsOut { wpos, wnorm }: Self::VsOut) -> Self::Fragment {
+    fn fragment_shader(&self, VertexAttr { wpos, wnorm }: Self::VertexAttr) -> Self::Fragment {
         let wnorm = wnorm.normalized();
-        let light_dir = Vec3::<f32>::new(0.0, 1.0, 1.0).normalized();
+        let light_dir = Vec3::<f32>::new(1.0, 1.0, 1.0).normalized();
         let cam_pos = Vec3::zero();
         let cam_dir = (wpos - cam_pos).normalized();
-        let surf_color = Rgba::new(1.0, 0.35, 0.3, 1.0);
+        let surf_color = Rgba::new(0.8, 1.0, 0.7, 1.0);
 
         // Phong reflection model
         let ambient = 0.1;
         let diffuse = wnorm.dot(-light_dir).max(0.0) * 0.5;
-        let specular = light_dir.reflected(wnorm).dot(cam_dir).max(0.0).powf(150.0) * 5.0;
-        let light = ambient + diffuse + specular;
+        let specular = light_dir.reflected(wnorm).dot(-cam_dir).max(0.0).powf(30.0) * 3.0;
 
-        let color = surf_color * light;
-
-        u32::from_le_bytes(color.map(|e| e.min(1.0) * 255.0).as_().into_array())
+        let color = surf_color * (ambient + diffuse + specular);
+        u32::from_le_bytes(color.map(|e| e.clamped(0.0, 1.0) * 255.0).as_().into_array())
     }
 }
 
@@ -67,8 +65,9 @@ fn main() {
     let mut i = 0;
     win.glutin_handle_basic_input(|win, input| {
         let p = Mat4::perspective_fov_lh_zo(1.3, w as f32, h as f32, 0.01, 100.0);
-        let v = Mat4::translation_3d(Vec3::new(0.0, 0.0, 6.0));
-        let m = Mat4::rotation_x((i as f32 * 0.03).sin() * 0.4)
+        let v = Mat4::identity();
+        let m = Mat4::<f32>::translation_3d(Vec3::new(0.0, 0.0, 6.0))
+            * Mat4::rotation_x((i as f32 * 0.03).sin() * 0.4)
             * Mat4::rotation_y((i as f32 * 0.005) * 4.0)
             * Mat4::rotation_z((i as f32 * 0.04).cos() * 0.4);
 
