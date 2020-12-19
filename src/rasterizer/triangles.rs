@@ -1,18 +1,21 @@
 use super::*;
-use crate::CoordinateMode;
+use crate::Handedness;
 use vek::*;
 
 /// A rasterizer that produces filled triangles.
 #[derive(Copy, Clone, Debug, Default)]
-pub struct Triangles(pub CullMode);
+pub struct Triangles;
 
 impl Rasterizer for Triangles {
+    type Config = CullMode;
+
     unsafe fn rasterize<P, I, F>(
         &self,
         pipeline: &P,
         mut vertices: I,
         target_size: [usize; 2],
         principal_x: bool,
+        cull_mode: CullMode,
         mut emit_fragment: F,
     )
     where
@@ -20,15 +23,17 @@ impl Rasterizer for Triangles {
         I: Iterator<Item = ([f32; 4], P::VsOut)>,
         F: FnMut([usize; 2], &[f32], &[P::VsOut], f32),
     {
-        let cull_dir = match self.0 {
+        let cull_dir = match cull_mode {
             CullMode::None => None,
             CullMode::Back => Some(1.0),
             CullMode::Front => Some(-1.0),
         };
 
-        let flip = match pipeline.coordinate_mode() {
-            CoordinateMode::Left => Vec2::new(1.0, 1.0),
-            CoordinateMode::Right => Vec2::new(1.0, -1.0),
+        let coord_mode = pipeline.coordinate_mode();
+
+        let flip = match coord_mode.handedness {
+            Handedness::Left => Vec2::new(1.0, 1.0),
+            Handedness::Right => Vec2::new(1.0, -1.0),
         };
 
         let size = Vec2::from(target_size).map(|e: usize| e as f32);
@@ -60,7 +65,7 @@ impl Rasterizer for Triangles {
 
             // Culling and correcting for winding
             let (verts_hom, verts_euc, verts_out) = if cull_dir
-                .map(|cull_dir| winding * cull_dir > 0.0)
+                .map(|cull_dir| winding * cull_dir < 0.0)
                 .unwrap_or(false)
             {
                 continue; // Cull the triangle
@@ -126,7 +131,10 @@ impl Rasterizer for Triangles {
                 // Calculate the interpolated z coordinate for the depth target
                 let z: f32 = verts_hom.map2(w, |v, w| v.z * w).sum() * w_hom.z;
 
-                emit_fragment([x, y], w.as_slice(), verts_out.as_slice(), z);
+                // Don't use `.contains(&z)`, it isn't inclusive
+                if z >= coord_mode.clip_range.start && z <= coord_mode.clip_range.end {
+                    emit_fragment([x, y], w.as_slice(), verts_out.as_slice(), z);
+                }
             }
         }
     }

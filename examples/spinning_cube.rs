@@ -1,96 +1,75 @@
 use vek::*;
-use euc::{
-    buffer2::Buffer2d,
-    pipeline2::Pipeline,
-    texture::{Empty, Target},
-    rasterizer2,
-    DepthStrategy,
-};
+use euc::{Pipeline, Buffer2d, Target, TriangleList, CullMode, IndexedVertices};
 
 struct Cube {
     mvp: Mat4<f32>,
 }
 
 impl Pipeline for Cube {
-    type Vertex = (usize, Vec4<f32>);
-    type VsOut = Vec4<f32>;
+    type Vertex = (Vec4<f32>, Rgba<f32>);
+    type VsOut = Rgba<f32>;
+    type Primitives = TriangleList;
     type Fragment = u32;
 
     #[inline(always)]
-    fn vertex_shader(&self, (v_index, v_color): &Self::Vertex) -> ([f32; 4], Self::VsOut) {
-        ((self.mvp * VERTICES[*v_index]).into_array(), *v_color)
+    fn vertex_shader(&self, (pos, color): &Self::Vertex) -> ([f32; 4], Self::VsOut) {
+        ((self.mvp * *pos).into_array(), *color)
     }
 
     #[inline(always)]
-    fn fragment_shader(&self, v_color: Self::VsOut) -> Self::Fragment {
-        let bytes = v_color.map(|e| (e * 255.0) as u8).into_array();
-        (bytes[2] as u32) << 0
-            | (bytes[1] as u32) << 8
-            | (bytes[0] as u32) << 16
-            | (bytes[3] as u32) << 24
+    fn fragment_shader(&self, color: Self::VsOut) -> Self::Fragment {
+        u32::from_le_bytes((color * 255.0).as_().into_array())
     }
 }
 
-const W: usize = 640;
-const H: usize = 480;
+const R: Rgba<f32> = Rgba::new(1.0, 0.0, 0.0, 1.0);
+const Y: Rgba<f32> = Rgba::new(1.0, 1.0, 0.0, 1.0);
+const G: Rgba<f32> = Rgba::new(0.0, 1.0, 0.0, 1.0);
+const B: Rgba<f32> = Rgba::new(0.0, 0.0, 1.0, 1.0);
 
-const VERTICES: &[Vec4<f32>] = &[
-    Vec4::new(-1.0, -1.0, -1.0, 1.0),
-    Vec4::new(-1.0, -1.0,  1.0, 1.0),
-    Vec4::new(-1.0,  1.0, -1.0, 1.0),
-    Vec4::new(-1.0,  1.0,  1.0, 1.0),
-    Vec4::new( 1.0, -1.0, -1.0, 1.0),
-    Vec4::new( 1.0, -1.0,  1.0, 1.0),
-    Vec4::new( 1.0,  1.0, -1.0, 1.0),
-    Vec4::new( 1.0,  1.0,  1.0, 1.0),
+const VERTICES: &[(Vec4<f32>, Rgba<f32>)] = &[
+    (Vec4::new(-1.0, -1.0, -1.0, 1.0), R),
+    (Vec4::new(-1.0, -1.0,  1.0, 1.0), Y),
+    (Vec4::new(-1.0,  1.0, -1.0, 1.0), G),
+    (Vec4::new(-1.0,  1.0,  1.0, 1.0), B),
+    (Vec4::new( 1.0, -1.0, -1.0, 1.0), B),
+    (Vec4::new( 1.0, -1.0,  1.0, 1.0), G),
+    (Vec4::new( 1.0,  1.0, -1.0, 1.0), Y),
+    (Vec4::new( 1.0,  1.0,  1.0, 1.0), R),
 ];
 
-const RED: Vec4<f32> = Vec4::new(1.0, 0.0, 0.0, 1.0);
-const GREEN: Vec4<f32> = Vec4::new(0.0, 1.0, 0.0, 1.0);
-const BLUE: Vec4<f32> = Vec4::new(0.0, 0.0, 1.0, 1.0);
-
-const INDICES: &[(usize, Vec4<f32>)] = &[
-    // -x
-    (0, GREEN), (3, BLUE ), (2, RED  ),
-    (0, GREEN), (1, RED  ), (3, BLUE ),
-    // +x
-    (7, BLUE ), (4, GREEN), (6, RED  ),
-    (5, RED  ), (4, GREEN), (7, BLUE ),
-    // -y
-    (5, BLUE ), (0, RED  ), (4, GREEN),
-    (1, GREEN), (0, RED  ), (5, BLUE ),
-    // +y
-    (2, RED  ), (7, BLUE ), (6, GREEN),
-    (2, RED  ), (3, GREEN), (7, BLUE ),
-    // -z
-    (0, RED  ), (6, GREEN), (4, BLUE ),
-    (0, RED  ), (2, BLUE ), (6, GREEN),
-    // +z
-    (7, GREEN), (1, RED  ), (5, BLUE ),
-    (3, BLUE ), (1, RED  ), (7, GREEN),
+const INDICES: &[usize] = &[
+    0, 3, 2, 0, 1, 3, // -x
+    7, 4, 6, 5, 4, 7, // +x
+    5, 0, 4, 1, 0, 5, // -y
+    2, 7, 6, 2, 3, 7, // +y
+    0, 6, 4, 0, 2, 6, // -z
+    7, 1, 5, 3, 1, 7, // +z
 ];
 
 fn main() {
-    let mut color = Buffer2d::fill([W, H], 0);
-    let mut depth = Buffer2d::fill([W, H], 1.0);
+    let [w, h] = [800, 600];
 
-    let mut win = mini_gl_fb::gotta_go_fast("Cube", W as f64, H as f64);
+    let mut color = Buffer2d::fill([w, h], 0);
+    let mut depth = Buffer2d::fill([w, h], 1.0);
+
+    let mut win = mini_gl_fb::gotta_go_fast("Cube", w as f64, h as f64);
 
     let mut i = 0;
     win.glutin_handle_basic_input(|win, input| {
-        let mvp = Mat4::perspective_fov_rh_no(1.3, W as f32, H as f32, 0.01, 100.0)
-            * Mat4::translation_3d(Vec3::new(0.0, 0.0, -2.0))
-            * Mat4::<f32>::scaling_3d(0.6)
+        let mvp = Mat4::perspective_fov_lh_zo(1.3, w as f32, h as f32, 0.01, 100.0)
+            * Mat4::translation_3d(Vec3::new(0.0, 0.0, 3.0))
             * Mat4::rotation_x((i as f32 * 0.002).sin() * 8.0)
             * Mat4::rotation_y((i as f32 * 0.004).cos() * 4.0)
-            * Mat4::rotation_z((i as f32 * 0.008).sin() * 2.0);
+            * Mat4::rotation_z((i as f32 * 0.008).sin() * 2.0)
+            * Mat4::scaling_3d(Vec3::new(1.0, -1.0, 1.0));
 
         color.clear(0);
         depth.clear(1.0);
 
         Cube { mvp }.render(
-            rasterizer2::Triangles,
-            INDICES,
+            IndexedVertices::new(INDICES, VERTICES),
+            CullMode::Back,
             &mut color,
             &mut depth,
         );
@@ -99,7 +78,6 @@ fn main() {
         win.redraw();
 
         i += 1;
-
         true
     });
 }

@@ -25,7 +25,9 @@ impl Default for CullMode {
 ///
 /// Rasterizers take an iterator of vertices and emit fragment positions. They do not, by themselves, perform shader
 /// execution, depth testing, etc.
-pub trait Rasterizer {
+pub trait Rasterizer: Default {
+    type Config;
+
     /// Rasterize the given vertices into fragments.
     ///
     /// - `target_size`: The size of the render target(s) in pixels
@@ -45,6 +47,7 @@ pub trait Rasterizer {
         vertices: I,
         target_size: [usize; 2],
         principal_x: bool,
+        config: Self::Config,
         emit_fragment: F,
     )
     where

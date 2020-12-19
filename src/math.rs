@@ -62,3 +62,38 @@ impl Truncate<u16> for f64 { fn truncate(self) -> u16 { self as u16 } fn detrunc
 impl Truncate<u32> for f64 { fn truncate(self) -> u32 { self as u32 } fn detruncate(x: u32) -> Self { x as f64 } }
 impl Truncate<u64> for f64 { fn truncate(self) -> u64 { self as u64 } fn detruncate(x: u64) -> Self { x as f64 } }
 impl Truncate<usize> for f64 { fn truncate(self) -> usize { self as usize } fn detruncate(x: usize) -> Self { x as f64 } }
+
+pub trait Denormalize<T>: Sized {
+    fn denormalize_to(self, scale: T) -> T;
+    fn denormalize_array<const N: usize>(this: [Self; N], other: [T; N]) -> [T; N];
+}
+
+macro_rules! impl_denormalize {
+    ($this:ty, $other:ty) => {
+        impl Denormalize<$other> for $this {
+            fn denormalize_to(self, scale: $other) -> $other {
+                ((self * scale as $this).max(0.0) as $other).min(scale - 1)
+            }
+
+            fn denormalize_array<const N: usize>(this: [Self; N], other: [$other; N]) -> [$other; N] {
+                let mut out = [0; N];
+                (0..N).for_each(|i| out[i] = this[i].denormalize_to(other[i]));
+                out
+            }
+        }
+    };
+}
+
+impl_denormalize!(f32, u8);
+impl_denormalize!(f32, u16);
+impl_denormalize!(f32, u32);
+impl_denormalize!(f32, u64);
+impl_denormalize!(f32, u128);
+impl_denormalize!(f32, usize);
+
+impl_denormalize!(f64, u8);
+impl_denormalize!(f64, u16);
+impl_denormalize!(f64, u32);
+impl_denormalize!(f64, u64);
+impl_denormalize!(f64, u128);
+impl_denormalize!(f64, usize);

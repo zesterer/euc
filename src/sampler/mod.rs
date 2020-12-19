@@ -3,14 +3,17 @@ use crate::{
     math::*,
 };
 use core::{
-    ops::{Div, Deref},
+    ops::Mul,
     marker::PhantomData,
 };
 
-/// A trait implemented by texture samplers.
+/// A trait that describes a sampler of a texture.
+///
+/// Samplers use normalised coordinates (between 0 and 1) to sample textures. Often, samplers will combine this with
+/// a sampling algorithm such as filtering or domain warping.
 pub trait Sampler<const N: usize>
 where
-    Self::Index: Truncate<<Self::Texture as Texture<N>>::Index>,
+    Self::Index: Denormalize<<Self::Texture as Texture<N>>::Index>,
 {
     /// The type used to perform sampling.
     type Index: Clone;
@@ -53,29 +56,27 @@ impl<T, I> Nearest<T, I> {
     }
 }
 
-impl<'a, T: Deref, I, const N: usize> Sampler<N> for Nearest<T, I>
+impl<'a, T, I, const N: usize> Sampler<N> for Nearest<T, I>
 where
-    T::Target: Texture<N>,
-    I: Clone + Div<Output = I> + Truncate<<T::Target as Texture<N>>::Index>,
+    T: Texture<N>,
+    I: Clone + Mul<Output = I> + Denormalize<T::Index>,
 {
     type Index = I;
 
-    type Sample = <T::Target as Texture<N>>::Texel;
+    type Sample = T::Texel;
 
-    type Texture = T::Target;
+    type Texture = T;
 
     #[inline(always)]
     fn raw_texture(&self) -> &Self::Texture { &self.0 }
 
     #[inline(always)]
-    fn sample(&self, mut index: [Self::Index; N]) -> Self::Sample {
-        let size = self.raw_texture().size();
-        (0..N).for_each(|i| index[i] = index[i].clone() / I::detruncate(size[i].clone()));
-        self.raw_texture().read(index.map(|x| x.truncate()))
+    fn sample(&self, index: [Self::Index; N]) -> Self::Sample {
+        self.raw_texture().read(I::denormalize_array(index, self.raw_texture().size()))
     }
 
     #[inline(always)]
     unsafe fn sample_unchecked(&self, index: [Self::Index; N]) -> Self::Sample {
-        self.raw_texture().read_unchecked(index.map(|x| x.truncate()))
+        self.raw_texture().read_unchecked(I::denormalize_array(index, self.raw_texture().size()))
     }
 }

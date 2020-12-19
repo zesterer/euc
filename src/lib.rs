@@ -40,27 +40,34 @@
 
 #![no_std]
 
-#![feature(min_const_generics, alloc_prelude, array_map)]
+#![feature(min_const_generics, alloc_prelude, array_map, type_alias_impl_trait)]
 
 extern crate alloc;
 
 /// N-dimensional buffers that may be used as textures and render targets.
 pub mod buffer;
+/// Index buffer features.
+pub mod index;
 /// Math-related functionality.
 pub mod math;
 /// Pipeline definitions.
 pub mod pipeline;
-/// Texture and target definitions.
-pub mod texture;
+/// Primitive definitions.
+pub mod primitives;
 /// Rasterization algorithms.
 pub mod rasterizer;
 /// Texture samplers.
 pub mod sampler;
+/// Texture and target definitions.
+pub mod texture;
 
 // Reexports
 pub use crate::{
     buffer::{Buffer, Buffer1d, Buffer2d, Buffer3d, Buffer4d},
-    pipeline::{Pipeline, DepthMode, CoordinateMode},
+    pipeline::{Pipeline, DepthMode, CoordinateMode, Handedness},
+    primitives::TriangleList,
     texture::{Texture, Target, Empty},
-    rasterizer::{Triangles, CullMode},
+    rasterizer::CullMode,
+    sampler::{Sampler, Nearest},
+    index::IndexedVertices,
 };

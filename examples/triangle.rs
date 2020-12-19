@@ -1,9 +1,9 @@
 use euc::{
-    buffer2::Buffer2d,
-    pipeline2::{Pipeline, CullMode, CoordinateMode},
-    texture::Empty,
-    rasterizer2,
-    DepthStrategy,
+    Buffer2d,
+    Pipeline,
+    TriangleList,
+    CullMode,
+    Empty,
 };
 use vek::*;
 
@@ -12,9 +12,8 @@ struct Triangle;
 impl Pipeline for Triangle {
     type Vertex = [f32; 4];
     type VsOut = Vec2<f32>;
+    type Primitives = TriangleList;
     type Fragment = u32;
-
-    fn cull_mode(&self) -> CullMode { CullMode::None }
 
     // Vertex shader
     // - Returns the 3D vertex location, and the VsOut value to be passed to the fragment shader
@@ -43,12 +42,12 @@ fn main() {
     let mut color = Buffer2d::fill([W, H], 0);
 
     Triangle.render(
-        rasterizer2::Triangles,
         &[
             [-1.0, -1.0, 0.0, 1.0],
             [1.0, -1.0, 0.0, 1.0],
             [0.0, 1.0, 0.0, 1.0],
         ],
+        CullMode::None,
         &mut color,
         Empty::default(),
     );

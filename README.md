@@ -5,7 +5,7 @@
 
 # <img src="misc/example.png" alt="Utah teapot, rendered with Euc" width="100%"/>
 
-## Example
+## Triangle Example
 
 ```rust
 struct Example;
@@ -46,40 +46,55 @@ See `examples/` for more code examples.
 
 ## What is `euc`?
 
-`euc` is a versatile, simple to use crate that allows 3D rendering on the CPU. It has a portable, compact design that makes it perfect for
-prototyping ideas, unit testing, or even simple realtime applications. `euc` is currently under active development.
+`euc` is a versatile, simple to use crate that allows 3D rendering on the CPU.
+It has a portable, compact design that makes it perfect for prototyping ideas,
+unit testing, or even simple realtime applications. `euc` is currently under
+active development.
 
 ## Why?
 
-- Modern graphics APIs are complex, verbose beasts. Rendering with the CPU means less complexity, less boilerplate and less verbosity:
-  perfect for testing ideas.
+- Modern graphics APIs are complex, verbose beasts. Rendering with the CPU means
+  less complexity, less boilerplate and less verbosity: perfect for testing
+  ideas.
 
-- Modern CPUs are fast enough to make simple 3D programs run at reasonable speeds (although they are of course no match for GPUs). It's
-  possible to write surprisingly complex realtime 3D software with the CPU only.
+- Modern CPUs are fast enough to make simple 3D programs run at reasonable
+  speeds (although they are of course no match for GPUs). It's possible to write
+  surprisingly complex realtime 3D software with the CPU only.
 
-- Not requiring a GPU interface means that `euc` is incredibly portable. As a result, `euc` is `no_std` (if you have a nightly compiler).
+- Not requiring a GPU interface means that `euc` is incredibly portable. As a
+  result, `euc` is `no_std` (if you have a nightly compiler).
 
-- `euc` has consistent cross-platform behaviour and doesn't require a GPU to run. This makes it perfect for use as a unit testing tool.
+- `euc` has consistent cross-platform behaviour and doesn't require a GPU to
+  run. This makes it perfect for use as a unit testing tool.
 
-- Running on the CPU allows a more dynamic approach to data access.
-  For applications in which performance is less of a concern, `euc` lowers the barrier of low-level 3D development and allows for more novel
-  approaches to graphics rendering to be realised.
+- Running on the CPU allows a more dynamic approach to data access. For
+  applications in which performance is less of a concern, `euc` lowers the
+  barrier of low-level 3D development and allows for more novel approaches to
+  graphics rendering to be realised.
+
+- Unusual data types can be used when rendering. Want to create a command-line
+  3D game? Now you use can use `char` as your pixel format directly!
 
 ## Coordinate System
 
-Where possible, `euc` tries to use a coordinate system similar in nature to OpenGL. If you're used to OpenGL, you'll have no trouble working
-with `euc`.
+By default, `euc` uses a left-handed coordinate system with 0-1 z clipping (like
+Vulkan). However, both of these properties can be changes independently and
+`euc` provides coordinate system constants that correspond to those of common
+graphics APIs such as `CoordinateMode::VULKAN` and `CoordinateMode::OPENGL`.
 
 ## Release Mode
 
-Cargo, by default, compiles Rust code in debug mode. In this mode, very few optimisations are made upon the code, and as a result the
-performance of software rendering tends to suffer. To experience this project with good performance, make sure to compile with the
-`--release` flag.
+Cargo, by default, compiles Rust code in debug mode. In this mode, very few
+optimisations are made upon the code, and as a result the performance of
+software rendering tends to suffer. To experience this project with good
+performance, make sure to compile with the `--release` flag.
 
 ## `no_std`
 
-`euc` can be compiled on platforms that lack standard library support. This makes it ideal for rendering 3D graphics on embedded devices.
-You can enable `no_std` support by disabling the default features and enabling the `libm` feature in your `Cargo.toml` file like so:
+`euc` can be compiled on platforms that lack standard library support. This
+makes it ideal for rendering 3D graphics on embedded devices. You can enable
+`no_std` support by disabling the default features and enabling the `libm`
+feature in your `Cargo.toml` file like so:
 
 ```toml
 [dependencies]

@@ -115,3 +115,36 @@ impl<J: Clone, const N: usize> Texture<N> for Empty<J> {
 impl<T: Clone> Target for Empty<T> {
     fn write(&mut self, _: [usize; 2], _: Self::Texel) { panic!("Cannot write to an empty texture"); }
 }
+
+#[cfg(feature = "image")]
+impl<P, C> Texture<2> for image_::ImageBuffer<P, C>
+where
+    P: image_::Pixel + Clone + 'static,
+    C: core::ops::Deref<Target = [P::Subpixel]>,
+{
+    type Index = usize;
+    type Texel = P;
+
+    fn size(&self) -> [Self::Index; 2] {
+        [self.width() as usize, self.height() as usize]
+    }
+
+    fn read(&self, [x, y]: [Self::Index; 2]) -> Self::Texel {
+        self.get_pixel(x as u32, y as u32).clone()
+    }
+}
+
+#[cfg(feature = "image")]
+impl<P, C> Target for image_::ImageBuffer<P, C>
+where
+    P: image_::Pixel + 'static,
+    C: core::ops::DerefMut<Target = [P::Subpixel]>,
+{
+    fn write(&mut self, [x, y]: [usize; 2], texel: Self::Texel) {
+        self.put_pixel(x as u32, y as u32, texel);
+    }
+
+    unsafe fn write_unchecked(&mut self, [x, y]: [usize; 2], texel: Self::Texel) {
+        image_::GenericImage::unsafe_put_pixel(self, x as u32, y as u32, texel);
+    }
+}
