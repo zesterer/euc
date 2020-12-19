@@ -4,6 +4,23 @@ pub use self::triangles::Triangles;
 
 use crate::Pipeline;
 
+/// The face culling strategy used during rendering.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub enum CullMode {
+    /// Do not cull triangles regardless of their winding order
+    None,
+    /// Cull clockwise triangles
+    Back,
+    /// Cull counter-clockwise triangles
+    Front,
+}
+
+impl Default for CullMode {
+    fn default() -> Self {
+        CullMode::Back
+    }
+}
+
 /// A trait that represents types that turn vertex streams into fragment coordinates.
 ///
 /// Rasterizers take an iterator of vertices and emit fragment positions. They do not, by themselves, perform shader

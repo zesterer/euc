@@ -44,17 +44,23 @@
 
 extern crate alloc;
 
+/// N-dimensional buffers that may be used as textures and render targets.
 pub mod buffer;
+/// Math-related functionality.
 pub mod math;
+/// Pipeline definitions.
 pub mod pipeline;
+/// Texture and target definitions.
 pub mod texture;
+/// Rasterization algorithms.
 pub mod rasterizer;
+/// Texture samplers.
 pub mod sampler;
 
 // Reexports
 pub use crate::{
     buffer::{Buffer, Buffer1d, Buffer2d, Buffer3d, Buffer4d},
-    pipeline::{Pipeline, DepthMode, CullMode, CoordinateMode},
+    pipeline::{Pipeline, DepthMode, CoordinateMode},
     texture::{Texture, Target, Empty},
-    rasterizer::Triangles,
+    rasterizer::{Triangles, CullMode},
 };

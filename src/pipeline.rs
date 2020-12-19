@@ -10,6 +10,7 @@ use core::{
 };
 
 /// Defines how a [`Pipeline`] will interact with the depth target.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct DepthMode {
     /// The test, if any, that occurs when comparing the depth of the new fragment with that of the current depth.
     pub test: Option<Ordering>,
@@ -57,23 +58,8 @@ impl DepthMode {
     }
 }
 
-/// The face culling strategy used during rendering.
-pub enum CullMode {
-    /// Do not cull triangles regardless of their winding order
-    None,
-    /// Cull clockwise triangles
-    Back,
-    /// Cull counter-clockwise triangles
-    Front,
-}
-
-impl Default for CullMode {
-    fn default() -> Self {
-        CullMode::Back
-    }
-}
-
 /// The coordinate space used during rasterization.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum CoordinateMode {
     /// right = +x, up = +y, out = -z (used by OpenGL and DirectX), default
     Right,
@@ -85,35 +71,6 @@ impl Default for CoordinateMode {
     fn default() -> Self {
         CoordinateMode::Right
     }
-}
-
-/// A type that may be used to produce a stream of vertices.
-pub trait VertexStream<'a> {
-    type Vertex: 'a;
-    type Iter: Iterator<Item=&'a Self::Vertex>;
-
-    fn vertices(self) -> Self::Iter;
-}
-
-impl<'a, V> VertexStream<'a> for core::slice::Iter<'a, V> {
-    type Vertex = V;
-    type Iter = Self;
-
-    fn vertices(self) -> Self::Iter { self }
-}
-
-impl<'a, V> VertexStream<'a> for &'a [V] {
-    type Vertex = V;
-    type Iter = core::slice::Iter<'a, V>;
-
-    fn vertices(self) -> Self::Iter { self.iter() }
-}
-
-impl<'a, V, const N: usize> VertexStream<'a> for &'a [V; N] {
-    type Vertex = V;
-    type Iter = core::slice::Iter<'a, V>;
-
-    fn vertices(self) -> Self::Iter { self.iter() }
 }
 
 /// Represents the high-level structure of a rendering pipeline.
@@ -129,9 +86,6 @@ pub trait Pipeline: Sized {
 
     /// Returns the [`DepthMode`] of this pipeline.
     fn depth_mode(&self) -> DepthMode { DepthMode::NONE }
-
-    /// Returns the [`CullMode`] of this pipeline.
-    fn cull_mode(&self) -> CullMode { CullMode::default() }
 
     /// Returns the [`CoordinateMode`] of this pipeline.
     fn coordinate_mode(&self) -> CoordinateMode { CoordinateMode::default() }
@@ -173,7 +127,7 @@ pub trait Pipeline: Sized {
     )
     where
         R: Rasterizer + 'a,
-        V: VertexStream<'a, Vertex = Self::Vertex>,
+        V: IntoIterator<Item = &'a Self::Vertex>,
         T: Target<Texel = Self::Fragment> + 'a,
         D: Target<Texel = f32> + 'a,
     {
@@ -187,7 +141,7 @@ pub trait Pipeline: Sized {
             assert_eq!(target_size, depth.size(), "Depth target size is compatible with the size of other target(s)");
         }
 
-        let mut vertices = vertex_stream.vertices().map(|v| self.vertex_shader(v)).peekable();
+        let mut vertices = vertex_stream.into_iter().map(|v| self.vertex_shader(v)).peekable();
         let mut vert_queue = VecDeque::new();
         let fetch_vertex = move || {
             loop {
@@ -201,18 +155,19 @@ pub trait Pipeline: Sized {
 
         let emit_fragment = move |pos, w: &[f32], vs_out: &[Self::VsOut], z: f32| {
             // Should we attempt to render the fragment at all?
-            let render_fragment = if let Some(test) = depth_mode.test {
+            let should_render = if let Some(test) = depth_mode.test {
                 let old_z = unsafe { depth.read_unchecked(pos) };
                 z.partial_cmp(&old_z) == Some(test)
             } else {
                 true
             };
 
-            if render_fragment {
+            if should_render {
                 let vs_out_lerped = w[1..]
                     .iter()
                     .zip(vs_out[1..].iter())
                     .fold(vs_out[0].clone() * w[0], |acc, (w, vs_out)| acc + vs_out.clone() * *w);
+
                 let frag = self.fragment_shader(vs_out_lerped);
                 let old_px = unsafe { pixels.read_unchecked(pos) };
                 let blended_px = self.blend_shader(old_px, frag);

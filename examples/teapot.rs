@@ -1,6 +1,6 @@
 use std::path::Path;
 use vek::*;
-use euc::{Pipeline, Buffer2d, Target, DepthMode, Triangles};
+use euc::{Pipeline, Buffer2d, Target, DepthMode, Triangles, CullMode};
 
 struct Teapot<'a> {
     mvp: Mat4<f32>,
@@ -93,7 +93,7 @@ fn main() {
             light_dir: Vec3::new(1.0, 1.0, 1.0).normalized(),
         }
         .render(
-            Triangles,
+            Triangles(CullMode::Back),
             indices.as_slice(),
             &mut color,
             &mut depth,

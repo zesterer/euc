@@ -14,6 +14,7 @@ pub type Buffer3d<T> = Buffer<T, 3>;
 pub type Buffer4d<T> = Buffer<T, 4>;
 
 /// A generic N-dimensional buffer that may be used both as a texture and as a render target.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Buffer<T, const N: usize> {
     size: [usize; N],
     items: Vec<T>,

@@ -1,9 +1,10 @@
 use super::*;
-use crate::{CullMode, CoordinateMode};
+use crate::CoordinateMode;
 use vek::*;
 
 /// A rasterizer that produces filled triangles.
-pub struct Triangles;
+#[derive(Copy, Clone, Debug, Default)]
+pub struct Triangles(pub CullMode);
 
 impl Rasterizer for Triangles {
     unsafe fn rasterize<P, I, F>(
@@ -19,7 +20,7 @@ impl Rasterizer for Triangles {
         I: Iterator<Item = ([f32; 4], P::VsOut)>,
         F: FnMut([usize; 2], &[f32], &[P::VsOut], f32),
     {
-        let cull_dir = match pipeline.cull_mode() {
+        let cull_dir = match self.0 {
             CullMode::None => None,
             CullMode::Back => Some(1.0),
             CullMode::Front => Some(-1.0),
