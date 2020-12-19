@@ -1,34 +1,37 @@
-use euc::{buffer::Buffer2d, rasterizer, DepthStrategy, Pipeline};
+use euc::{
+    buffer2::Buffer2d,
+    pipeline2::{Pipeline, CullMode, CoordinateMode},
+    texture::Empty,
+    rasterizer2,
+    DepthStrategy,
+};
+use vek::*;
 
 struct Triangle;
 
 impl Pipeline for Triangle {
     type Vertex = [f32; 4];
-    type VsOut = ();
-    type Pixel = u32;
+    type VsOut = Vec2<f32>;
+    type Fragment = u32;
+
+    fn cull_mode(&self) -> CullMode { CullMode::None }
 
     // Vertex shader
     // - Returns the 3D vertex location, and the VsOut value to be passed to the fragment shader
     #[inline(always)]
-    fn vert(&self, pos: &[f32; 4]) -> ([f32; 4], Self::VsOut) {
-        (*pos, ())
-    }
-
-    // Specify the depth buffer strategy used for each draw call
-    #[inline(always)]
-    fn get_depth_strategy(&self) -> DepthStrategy {
-        DepthStrategy::None
+    fn vertex_shader(&self, pos: &[f32; 4]) -> ([f32; 4], Self::VsOut) {
+        (*pos, Vec2::new(pos[0], pos[1]))
     }
 
     // Fragment shader
     // - Returns (in this case) a u32
     #[inline(always)]
-    fn frag(&self, _: &Self::VsOut) -> Self::Pixel {
-        let bytes = [255, 0, 0, 255]; // Red
+    fn fragment_shader(&self, xy: Self::VsOut) -> Self::Fragment {
+        let bytes = [(xy.x * 255.0) as u8, (xy.y * 255.0) as u8, 0, 255]; // Red
 
-        (bytes[2] as u32) << 0
+        (bytes[0] as u32) << 0
             | (bytes[1] as u32) << 8
-            | (bytes[0] as u32) << 16
+            | (bytes[2] as u32) << 16
             | (bytes[3] as u32) << 24
     }
 }
@@ -37,20 +40,20 @@ const W: usize = 640;
 const H: usize = 480;
 
 fn main() {
-    let mut color = Buffer2d::new([W, H], 0);
+    let mut color = Buffer2d::fill([W, H], 0);
 
-    Triangle.draw::<rasterizer::Triangles<(f32,)>, _>(
+    Triangle.render(
+        rasterizer2::Triangles,
         &[
             [-1.0, -1.0, 0.0, 1.0],
             [1.0, -1.0, 0.0, 1.0],
             [0.0, 1.0, 0.0, 1.0],
         ],
         &mut color,
-        None,
+        Empty::default(),
     );
 
-    let mut win = minifb::Window::new("Triangle", W, H, minifb::WindowOptions::default()).unwrap();
-    while win.is_open() {
-        win.update_with_buffer(color.as_ref(), W, H).unwrap();
-    }
+    let mut win = mini_gl_fb::gotta_go_fast("Triangle", W as f64, H as f64);
+    win.update_buffer(color.raw());
+    win.persist();
 }

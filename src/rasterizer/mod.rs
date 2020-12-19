@@ -1,59 +1,37 @@
-mod lines;
-mod triangles;
+pub mod triangles;
 
-// Reexports
-pub use self::lines::Lines;
 pub use self::triangles::Triangles;
 
-use crate::{Pipeline, Target};
+use crate::Pipeline;
 
-#[derive(Copy, Clone, Debug)]
-pub enum DepthStrategy {
-    IfLessWrite,
-    IfMoreWrite,
-    IfLessNoWrite,
-    IfMoreNoWrite,
-    None,
-}
-
-/// This trait is for internal use only.
-pub trait BackfaceMode {
-    const ENABLED: bool;
-}
-
-/// Implies that reversed polygons should not be culled from the rendering pipeline.
-pub struct BackfaceCullingDisabled;
-
-impl BackfaceMode for BackfaceCullingDisabled {
-    const ENABLED: bool = false;
-}
-
-/// Implies that reversed polygons should be culled from the rendering pipeline.
-pub struct BackfaceCullingEnabled;
-
-impl BackfaceMode for BackfaceCullingEnabled {
-    const ENABLED: bool = true;
-}
-
-/// Represents a rasterization algorithm.
+/// A trait that represents types that turn vertex streams into fragment coordinates.
+///
+/// Rasterizers take an iterator of vertices and emit fragment positions. They do not, by themselves, perform shader
+/// execution, depth testing, etc.
 pub trait Rasterizer {
-    /// The type of input required during rasterization.
+    /// Rasterize the given vertices into fragments.
     ///
-    /// For most rasterization algorithms, this is the information that corresponds to a vertex
-    /// position.
-    type Input;
-
-    /// The type of any supplementary data required by the rasterization algorithm.
+    /// - `target_size`: The size of the render target(s) in pixels
+    /// - `principal_x`: Whether the rasterizer should prefer the x axis as the principal iteration access (see
+    ///   [`Texture::principle_axes`])
+    /// - `emit_fragment`: The function that should be called with the target coordinate (in pixels), weights for each
+    ///   vertex as a contribution to the final interpolated vertex output, the vertex outputs, and the depth of each
+    ///   rasterized fragment.
     ///
-    /// Examples of supplementary data include depth buffers, stencil buffers, etc.
-    type Supplement;
-
-    /// Rasterize the provided vertex data and write the resulting fragment information to the
-    /// target.
-    fn draw<P: Pipeline, T: Target<Item = P::Pixel>>(
+    /// # Safety
+    ///
+    /// `emit_fragment` must only be called with fragment positions that are valid for the `target_size` parameter
+    /// provided. Undefined behaviour can be assumed to occur if this is not upheld.
+    unsafe fn rasterize<P, I, F>(
+        &self,
         pipeline: &P,
-        vertices: &[P::Vertex],
-        target: &mut T,
-        supplement: Self::Supplement,
-    );
+        vertices: I,
+        target_size: [usize; 2],
+        principal_x: bool,
+        emit_fragment: F,
+    )
+    where
+        P: Pipeline,
+        I: Iterator<Item = ([f32; 4], P::VsOut)>,
+        F: FnMut([usize; 2], &[f32], &[P::VsOut], f32);
 }
