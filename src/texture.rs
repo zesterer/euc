@@ -61,23 +61,55 @@ impl<'a, T: Texture<N>, const N: usize> Texture<N> for &'a mut T {
 }
 
 /// A trait implemented by 2-dimensional textures that may be treated as render targets.
+///
+/// Targets necessarily require additional invariants to be upheld than textures for safe use. Because access to them
+/// may be parallelised, it is essential that there is a 1:1 mapping between each index and a unique memory location.
+/// If this is not upheld, Rust's 1 writer / many readers aliasing model may be broken. The `read_exclusive_unchecked`
+/// and `write_exclusive_unchecked` methods may only be called by callers that have already ensured that nothing else
+/// can access the target at the same time. In addition, the target must guarantee that no reads or writes escape
+/// either method. This can be done by having each texel be an `UnsafeCell`.
 pub trait Target: Texture<2, Index = usize> {
-    /// Write a texel at the given index.
+    /// Read a texel at the given assumed-valid index.
     ///
-    /// # Panics
+    /// # Safety
     ///
-    /// The behaviour of this function is *unspecified* (but not *undefined*) when the index is out of bounds. The
-    /// implementation is free to panic, write to an entirely different texel, or do nothing.
-    fn write(&mut self, index: [usize; 2], texel: Self::Texel);
+    /// If the index is invalid, undefined behaviour can be assumed to occur. Ensure that the index is valid before
+    /// use. Access to this index *must* be exclusive to avoid undefined behaviour (i.e: nothing else may be reading or
+    /// writing to this index during the duration of this call). The caller must enforce this through a lock or some
+    /// other such mechanism with mutual exclusion properties.
+    unsafe fn read_exclusive_unchecked(&self, index: [Self::Index; 2]) -> Self::Texel;
 
     /// Write a texel at the given assumed-valid index.
     ///
     /// # Safety
     ///
     /// If the index is invalid, undefined behaviour can be assumed to occur. Ensure that the index is valid before
-    /// use.
+    /// use. Access to this index *must* be exclusive to avoid undefined behaviour (i.e: nothing else may be reading or
+    /// writing to this index during the duration of this call). The caller must enforce this through a lock or some
+    /// other such mechanism with mutual exclusion properties.
+    unsafe fn write_exclusive_unchecked(&self, index: [usize; 2], texel: Self::Texel);
+
+    /// Write a texel at the given assumed-valid index.
+    ///
+    /// # Safety
+    ///
+    /// If the index is invalid, undefined behaviour can be assumed to occur. Ensure that the index is valid before
+    /// use. Access to this index *must* be exclusive to avoid undefined behaviour (i.e: nothing else may be reading or
+    /// writing to this index during the duration of this call).
     unsafe fn write_unchecked(&mut self, index: [usize; 2], texel: Self::Texel) {
-        self.write(index, texel);
+        self.write_exclusive_unchecked(index, texel);
+    }
+
+    /// Write a texel at the given index.
+    ///
+    /// # Panics
+    ///
+    /// The behaviour of this function is *unspecified* (but not *undefined*) when the index is out of bounds. The
+    /// implementation is free to panic, write to an entirely different texel, or do nothing.
+    fn write(&mut self, [x, y]: [usize; 2], texel: Self::Texel) {
+        if x < self.size()[0] && y < self.size()[1] {
+            unsafe { self.write_unchecked([x, y], texel); }
+        }
     }
 
     /// Clears the entire target with the given texel.
@@ -91,9 +123,11 @@ pub trait Target: Texture<2, Index = usize> {
 }
 
 impl<'a, T: Target> Target for &'a mut T {
-    fn write(&mut self, index: [usize; 2], texel: Self::Texel) { (**self).write(index, texel); }
-    unsafe fn write_unchecked(&mut self, index: [usize; 2], texel: Self::Texel) { (**self).write_unchecked(index, texel); }
-    fn clear(&mut self, texel: Self::Texel) { (**self).clear(texel); }
+    unsafe fn read_exclusive_unchecked(&self, index: [Self::Index; 2]) -> Self::Texel { T::read_exclusive_unchecked(self, index) }
+    unsafe fn write_exclusive_unchecked(&self, index: [usize; 2], texel: Self::Texel) { T::write_exclusive_unchecked(self, index, texel) }
+    unsafe fn write_unchecked(&mut self, index: [usize; 2], texel: Self::Texel) { T::write_unchecked(self, index, texel) }
+    fn write(&mut self, index: [usize; 2], texel: Self::Texel) { T::write(self, index, texel); }
+    fn clear(&mut self, texel: Self::Texel) { T::clear(self, texel); }
 }
 
 /// An always-empty texture. Useful as a placeholder for an unused target.
@@ -113,7 +147,8 @@ impl<J: Clone, const N: usize> Texture<N> for Empty<J> {
 }
 
 impl<T: Clone> Target for Empty<T> {
-    fn write(&mut self, _: [usize; 2], _: Self::Texel) { panic!("Cannot write to an empty texture"); }
+    unsafe fn read_exclusive_unchecked(&self, _: [Self::Index; 2]) -> Self::Texel { panic!("Cannot read from an empty texture"); }
+    unsafe fn write_exclusive_unchecked(&self, _: [usize; 2], _: Self::Texel) { panic!("Cannot write to an empty texture"); }
 }
 
 #[cfg(feature = "image")]
@@ -134,17 +169,17 @@ where
     }
 }
 
-#[cfg(feature = "image")]
-impl<P, C> Target for image_::ImageBuffer<P, C>
-where
-    P: image_::Pixel + 'static,
-    C: core::ops::DerefMut<Target = [P::Subpixel]>,
-{
-    fn write(&mut self, [x, y]: [usize; 2], texel: Self::Texel) {
-        self.put_pixel(x as u32, y as u32, texel);
-    }
+// #[cfg(feature = "image")]
+// impl<P, C> Target for image_::ImageBuffer<P, C>
+// where
+//     P: image_::Pixel + 'static,
+//     C: core::ops::DerefMut<Target = [P::Subpixel]>,
+// {
+//     fn write(&mut self, [x, y]: [usize; 2], texel: Self::Texel) {
+//         self.put_pixel(x as u32, y as u32, texel);
+//     }
 
-    unsafe fn write_unchecked(&mut self, [x, y]: [usize; 2], texel: Self::Texel) {
-        image_::GenericImage::unsafe_put_pixel(self, x as u32, y as u32, texel);
-    }
-}
+//     unsafe fn write_unchecked(&mut self, [x, y]: [usize; 2], texel: Self::Texel) {
+//         image_::GenericImage::unsafe_put_pixel(self, x as u32, y as u32, texel);
+//     }
+// }

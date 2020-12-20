@@ -1,5 +1,6 @@
 use crate::texture::{Texture, Target};
 use alloc::vec::Vec;
+use core::cell::UnsafeCell;
 
 /// A generic 1-dimensional buffer that may be used as a texture.
 pub type Buffer1d<T> = Buffer<T, 2>;
@@ -78,17 +79,29 @@ impl<T: Clone, const N: usize> Texture<N> for Buffer<T, N> {
 
 impl<T: Clone> Target for Buffer<T, 2> {
     #[inline(always)]
+    unsafe fn read_exclusive_unchecked(&self, index: [Self::Index; 2]) -> Self::Texel {
+        // TODO: This is *technically* UB since the `self` reference is still live in this context.
+        // Really, this cast is incorrect and the `items` `Vec` should just contain `UnsafeCell<T>`.
+        let items = &*(self.items.as_slice() as *const _ as *const [UnsafeCell<T>]);
+        (&*items.get_unchecked(self.linear_index(index)).get()).clone()
+    }
+
+    #[inline(always)]
+    unsafe fn write_exclusive_unchecked(&self, index: [usize; 2], texel: Self::Texel) {
+        // TODO: This is *technically* UB since the `self` reference is still live in this context.
+        // Really, this cast is incorrect and the `items` `Vec` should just contain `UnsafeCell<T>`.
+        let items = &*(self.items.as_slice() as *const _ as *const [UnsafeCell<T>]);
+        *items.get_unchecked(self.linear_index(index)).get() = texel;
+    }
+
+
+    #[inline(always)]
     fn write(&mut self, index: [usize; 2], texel: Self::Texel) {
         let idx = self.linear_index(index);
         self.items[idx] = texel;
     }
 
     #[inline(always)]
-    unsafe fn write_unchecked(&mut self, index: [usize; 2], texel: Self::Texel) {
-        let idx = self.linear_index(index);
-        *self.items.get_unchecked_mut(idx) = texel;
-    }
-
     fn clear(&mut self, texel: Self::Texel) {
         self.items.iter_mut().for_each(|item| *item = texel.clone());
     }

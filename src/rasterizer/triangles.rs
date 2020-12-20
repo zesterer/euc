@@ -1,5 +1,7 @@
 use super::*;
-use crate::{Handedness, CoordinateMode};
+use crate::{CoordinateMode, YAxisDirection};
+use core::ops::{Mul, Add};
+use alloc::vec::Vec;
 use vek::*;
 
 /// A rasterizer that produces filled triangles.
@@ -9,18 +11,21 @@ pub struct Triangles;
 impl Rasterizer for Triangles {
     type Config = CullMode;
 
-    unsafe fn rasterize<V, I, F>(
+    unsafe fn rasterize<V, I, F, G>(
         &self,
         mut vertices: I,
         target_size: [usize; 2],
         principal_x: bool,
         coordinate_mode: CoordinateMode,
         cull_mode: CullMode,
-        mut emit_fragment: F,
+        test_depth: F,
+        emit_fragment: G,
     )
     where
+        V: Clone + Mul<f32, Output = V> + Add<Output = V> + Send + Sync,
         I: Iterator<Item = ([f32; 4], V)>,
-        F: FnMut([usize; 2], &[f32], &[V], f32),
+        F: Fn([usize; 2], f32) -> bool + Send + Sync,
+        G: Fn([usize; 2], V, f32) + Send + Sync,
     {
         let cull_dir = match cull_mode {
             CullMode::None => None,
@@ -28,9 +33,9 @@ impl Rasterizer for Triangles {
             CullMode::Front => Some(-1.0),
         };
 
-        let flip = match coordinate_mode.handedness {
-            Handedness::Left => Vec2::new(1.0, 1.0),
-            Handedness::Right => Vec2::new(1.0, -1.0),
+        let flip = match coordinate_mode.y_axis_direction {
+            YAxisDirection::Down => Vec2::new(1.0, 1.0),
+            YAxisDirection::Up => Vec2::new(1.0, -1.0),
         };
 
         let size = Vec2::from(target_size).map(|e: usize| e as f32);
@@ -41,13 +46,11 @@ impl Rasterizer for Triangles {
             [0.0, 0.0, 1.0],
         ]);
 
-        loop {
-            let verts_hom_out = Vec3::new(
-                if let Some(v) = vertices.next() { v } else { break },
-                if let Some(v) = vertices.next() { v } else { break },
-                if let Some(v) = vertices.next() { v } else { break },
-            );
+        let verts_hom_outs = core::iter::from_fn(move || {
+            Some(Vec3::new(vertices.next()?, vertices.next()?, vertices.next()?))
+        });
 
+        verts_hom_outs.for_each(|verts_hom_out: Vec3<([f32; 4], V)>| {
             // Calculate vertex shader outputs and vertex homogeneous coordinates
             let verts_hom = Vec3::new(verts_hom_out.x.0, verts_hom_out.y.0, verts_hom_out.z.0).map(Vec4::<f32>::from);
             let verts_out = Vec3::new(verts_hom_out.x.1, verts_hom_out.y.1, verts_hom_out.z.1);
@@ -65,7 +68,7 @@ impl Rasterizer for Triangles {
                 .map(|cull_dir| winding * cull_dir < 0.0)
                 .unwrap_or(false)
             {
-                continue; // Cull the triangle
+                return; // Cull the triangle
             } else if winding < 0.0 {
                 // Reverse vertex order
                 (verts_hom.zyx(), verts_euc.zyx(), verts_out.zyx())
@@ -100,39 +103,59 @@ impl Rasterizer for Triangles {
                 max: Vec2::min(verts_screen.reduce(|a, b| Vec2::partial_max(a, b)).as_() + 1, Vec2::from(target_size) - 1),
             };
 
-            // Choose an iteration order based on the principal axis
-            let (xs, ys) = (
-                (tri_bounds.min.x, tri_bounds.max.x),
-                (tri_bounds.min.y, tri_bounds.max.y),
-            );
-            let coords = (if principal_x { ys.0..ys.1 } else { xs.0..xs.1 })
-                .map(|j| (if principal_x { xs.0..xs.1 } else { ys.0..ys.1 })
-                    .map(move |i| if principal_x { (i, j) } else { (j, i) }))
-                .flatten();
-
             // Iterate over fragment candidates within the triangle's bounding box
-            for (x, y) in coords {
-                // Calculate fragment center
-                let p = Vec3::new(x as f32 + 0.5, y as f32 + 0.5, 1.0);
+            (tri_bounds.min.y..tri_bounds.max.y).for_each(|y| {
+                // Only perform this optimisation if it looks to be worth it.
+                let row_range = if tri_bounds.max.x - tri_bounds.min.x > 8 {
+                    // Calculate a precise for which the pixels of the triangle appear on this row
+                    let edges = verts_screen.zip(Vec3::new(verts_screen.y, verts_screen.z, verts_screen.x));
+                    let row_range = edges
+                        .map(|(a, b)| {
+                            let x = Lerp::lerp(a.x, b.x, (y as f32 - a.y) / (b.y - a.y));
+                            let x2 = Lerp::lerp(a.x, b.x, (y as f32 + 1.0 - a.y) / (b.y - a.y));
+                            let (x_min, x_max) = (x.min(x2), x.max(x2));
+                            Vec2::new(
+                                if x < tri_bounds.min.x as f32 { tri_bounds.max.x as f32 } else { x_min },
+                                if x > tri_bounds.max.x as f32 { tri_bounds.min.x as f32 } else { x_max },
+                            )
+                        })
+                        .reduce(|a, b| Vec2::new(a.x.min(b.x), a.y.max(b.y)))
+                        .map(|e| e as usize);
+                    Vec2::new(
+                        row_range.x.saturating_sub(1),
+                        (row_range.y + 1).min(target_size[0]),
+                    )
+                } else {
+                    Vec2::new(tri_bounds.min.x, tri_bounds.max.x)
+                };
 
-                // Calculate vertex weights to determine vs_out lerping and intersection
-                let w_hom = coords_to_weights * p;
-                let w = Vec2::new(w_hom.x / w_hom.z, w_hom.y / w_hom.z);
-                let w = Vec3::new(w.x, w.y, 1.0 - w.x - w.y);
+                for x in row_range.x..row_range.y {
+                    // Calculate fragment center
+                    let p = Vec3::new(x as f32 + 0.5, y as f32 + 0.5, 1.0);
 
-                // Test the weights to determine whether the fragment is outside the triangle
-                if w.map(|e| e < 0.0).reduce_or() {
-                    continue;
+                    // Calculate vertex weights to determine vs_out lerping and intersection
+                    let w_hom = coords_to_weights * p;
+                    let w = Vec2::new(w_hom.x / w_hom.z, w_hom.y / w_hom.z);
+                    let w = Vec3::new(w.x, w.y, 1.0 - w.x - w.y);
+
+                    // Test the weights to determine whether the fragment is outside the triangle
+                    if w.map(|e| e < 0.0).reduce_or() {
+                        continue;
+                    }
+
+                    // Calculate the interpolated z coordinate for the depth target
+                    let z: f32 = verts_hom.map2(w, |v, w| v.z * w).sum() * w_hom.z;
+
+                    // Don't use `.contains(&z)`, it isn't inclusive
+                    if z >= coordinate_mode.z_clip_range.start && z <= coordinate_mode.z_clip_range.end {
+                        if test_depth([x, y], z) {
+                            let vert_out_lerped = verts_out.clone().map2(w, |vo, w| vo * w).sum();
+
+                            emit_fragment([x, y], vert_out_lerped, z);
+                        }
+                    }
                 }
-
-                // Calculate the interpolated z coordinate for the depth target
-                let z: f32 = verts_hom.map2(w, |v, w| v.z * w).sum() * w_hom.z;
-
-                // Don't use `.contains(&z)`, it isn't inclusive
-                if z >= coordinate_mode.clip_range.start && z <= coordinate_mode.clip_range.end {
-                    emit_fragment([x, y], w.as_slice(), verts_out.as_slice(), z);
-                }
-            }
-        }
+            });
+        });
     }
 }

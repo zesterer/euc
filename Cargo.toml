@@ -16,14 +16,16 @@ exclude = [
 [dependencies]
 vek = { version = "0.12", default-features = false, features = [] }
 image_ = { package = "image", version = "0.23", optional = true }
+rayon = { version = "1.5", optional = true }
 
 [features]
-default = ["std", "simd", "image"]
+default = ["std", "simd", "image", "par"]
 std = ["vek/std"]
 libm = ["vek/libm"]
 nightly = []
 simd = ["vek/repr_simd"]
 image = ["image_"]
+par = ["rayon"]
 
 [dev-dependencies]
 mini_gl_fb = "0.7.0"

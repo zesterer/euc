@@ -64,7 +64,7 @@ pub mod texture;
 // Reexports
 pub use crate::{
     buffer::{Buffer, Buffer1d, Buffer2d, Buffer3d, Buffer4d},
-    pipeline::{Pipeline, DepthMode, CoordinateMode, Handedness},
+    pipeline::{Pipeline, DepthMode, CoordinateMode, Handedness, YAxisDirection},
     primitives::TriangleList,
     texture::{Texture, Target, Empty},
     rasterizer::CullMode,

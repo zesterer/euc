@@ -46,12 +46,6 @@ impl DepthMode {
     };
 }
 
-impl Default for DepthMode {
-    fn default() -> Self {
-        Self::LESS_WRITE
-    }
-}
-
 impl DepthMode {
     /// Determine whether the depth mode needs to interact with the depth target at all.
     pub fn uses_depth(&self) -> bool {
@@ -62,29 +56,55 @@ impl DepthMode {
 /// The handedness of the coordinate space used by a pipeline.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Handedness {
-    /// Left-handed coordinate space
+    /// Left-handed coordinate space (used by Vulkan and DirectX)
     Left,
-    /// Right-handed coordinate space
+    /// Right-handed coordinate space (used by OpenGL and Metal)
     Right,
+}
+
+/// The direction represented by +y in screen space.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub enum YAxisDirection {
+    // +y points down towards the bottom of the screen (i.e: -y is up).
+    Down,
+    // +y points up towards the top of the screen (i.e: -y is down).
+    Up,
 }
 
 /// The configuration of the coordinate system used by a pipeline.
 pub struct CoordinateMode {
     pub handedness: Handedness,
-    pub clip_range: Range<f32>,
+    pub y_axis_direction: YAxisDirection,
+    pub z_clip_range: Range<f32>,
 }
 
 impl CoordinateMode {
-    /// OpenGL-like coordinates
+    /// OpenGL-like coordinates (right-handed, y = up, -1 to 1 z clip range).
     pub const OPENGL: Self = Self {
         handedness: Handedness::Right,
-        clip_range: -1.0..1.0,
+        y_axis_direction: YAxisDirection::Up,
+        z_clip_range: -1.0..1.0,
     };
 
-    /// Vulkan-like coordinates
+    /// Vulkan-like coordinates (left-handed, y = down, 0 to 1 z clip range).
     pub const VULKAN: Self = Self {
         handedness: Handedness::Left,
-        clip_range: 0.0..1.0,
+        y_axis_direction: YAxisDirection::Down,
+        z_clip_range: 0.0..1.0,
+    };
+
+    /// Metal-like coordinates (right-handed, y = down, 0 to 1 z clip range).
+    pub const METAL: Self = Self {
+        handedness: Handedness::Right,
+        y_axis_direction: YAxisDirection::Down,
+        z_clip_range: 0.0..1.0,
+    };
+
+    /// DirectX-like coordinates (left-handed, y = up, 0 to 1 z clip range).
+    pub const DIRECTX: Self = Self {
+        handedness: Handedness::Left,
+        y_axis_direction: YAxisDirection::Up,
+        z_clip_range: 0.0..1.0,
     };
 }
 
@@ -102,7 +122,7 @@ impl Default for CoordinateMode {
 /// the behaviour of the pipeline even further.
 pub trait Pipeline: Sized {
     type Vertex;
-    type VertexAttr: Clone + Mul<f32, Output=Self::VertexAttr> + Add<Output=Self::VertexAttr>;
+    type VertexAttr: Clone + Mul<f32, Output=Self::VertexAttr> + Add<Output=Self::VertexAttr> + Send + Sync;
     type Primitives: PrimitiveKind<Self::VertexAttr>;
     type Fragment;
 
@@ -149,14 +169,15 @@ pub trait Pipeline: Sized {
         &'a self,
         vertices: S,
         rasterizer_config: <<Self::Primitives as PrimitiveKind<Self::VertexAttr>>::Rasterizer as Rasterizer>::Config,
-        mut pixels: P,
-        mut depth: D,
+        pixels: &mut P,
+        depth: &mut D,
     )
     where
+        Self: Send + Sync,
         S: IntoIterator<Item = V>,
         V: Borrow<Self::Vertex>,
-        P: Target<Texel = Self::Fragment> + 'a,
-        D: Target<Texel = f32> + 'a,
+        P: Target<Texel = Self::Fragment> + Send + Sync + 'a,
+        D: Target<Texel = f32> + Send + Sync + 'a,
     {
         let depth_mode = self.depth_mode();
         let target_size = pixels.size();
@@ -186,29 +207,26 @@ pub trait Pipeline: Sized {
             }
         };
 
-        let emit_fragment = move |pos, w: &[f32], vs_out: &[Self::VertexAttr], z: f32| {
-            // Should we attempt to render the fragment at all?
-            let should_render = if let Some(test) = depth_mode.test {
-                let old_z = unsafe { depth.read_unchecked(pos) };
+        let pixels = &*pixels;
+        let depth = &*depth;
+
+        let test_depth = move |pos, z: f32| {
+            if let Some(test) = depth_mode.test {
+                let old_z = unsafe { depth.read_exclusive_unchecked(pos) };
                 z.partial_cmp(&old_z) == Some(test)
             } else {
                 true
-            };
+            }
+        };
 
-            if should_render {
-                let vs_out_lerped = w[1..]
-                    .iter()
-                    .zip(vs_out[1..].iter())
-                    .fold(vs_out[0].clone() * w[0], |acc, (w, vs_out)| acc + vs_out.clone() * *w);
+        let emit_fragment = move |pos, vs_out_lerped: Self::VertexAttr, z: f32| {
+            let frag = self.fragment_shader(vs_out_lerped);
+            let old_px = unsafe { pixels.read_exclusive_unchecked(pos) };
+            let blended_px = self.blend_shader(old_px, frag);
+            unsafe { pixels.write_exclusive_unchecked(pos, blended_px); }
 
-                let frag = self.fragment_shader(vs_out_lerped);
-                let old_px = unsafe { pixels.read_unchecked(pos) };
-                let blended_px = self.blend_shader(old_px, frag);
-                unsafe { pixels.write_unchecked(pos, blended_px); }
-
-                if depth_mode.write {
-                    unsafe { depth.write_unchecked(pos, z); }
-                }
+            if depth_mode.write {
+                unsafe { depth.write_exclusive_unchecked(pos, z); }
             }
         };
 
@@ -219,6 +237,7 @@ pub trait Pipeline: Sized {
                 principal_x,
                 self.coordinate_mode(),
                 rasterizer_config,
+                test_depth,
                 emit_fragment,
             );
         }
