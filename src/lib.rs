@@ -9,16 +9,16 @@
 //!
 //! impl Pipeline for Example {
 //!     type Vertex = [f32; 2];
-//!     type VsOut = ();
-//!     type Pixel = [u8; 4];
+//!     type VertexData = ();
+//!     type Fragment = [u8; 4];
 //!
 //!     // Vertex shader
-//!     fn vert(&self, pos: &Self::Vertex) -> ([f32; 3], Self::VsOut) {
+//!     fn vert(&self, pos: &Self::Vertex) -> ([f32; 3], Self::VertexData) {
 //!         ([pos[0], pos[1], 0.0], ())
 //!     }
 //!
 //!     // Fragment shader
-//!     fn frag(&self, _: &Self::VsOut) -> Self::Pixel {
+//!     fn frag(&self, _: Self::VertexData) -> Self::Fragment {
 //!         [255, 0, 0, 255] // Red
 //!     }
 //! }
@@ -40,7 +40,7 @@
 
 #![no_std]
 
-#![feature(min_const_generics, alloc_prelude, array_map, type_alias_impl_trait)]
+#![feature(min_const_generics, array_map, type_alias_impl_trait)]
 
 extern crate alloc;
 

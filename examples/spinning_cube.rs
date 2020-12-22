@@ -7,17 +7,17 @@ struct Cube {
 
 impl Pipeline for Cube {
     type Vertex = (Vec4<f32>, Rgba<f32>);
-    type VertexAttr = Rgba<f32>;
+    type VertexData = Rgba<f32>;
     type Primitives = TriangleList;
     type Fragment = u32;
 
     #[inline(always)]
-    fn vertex_shader(&self, (pos, color): &Self::Vertex) -> ([f32; 4], Self::VertexAttr) {
+    fn vertex_shader(&self, (pos, color): &Self::Vertex) -> ([f32; 4], Self::VertexData) {
         ((self.mvp * *pos).into_array(), *color)
     }
 
     #[inline(always)]
-    fn fragment_shader(&self, color: Self::VertexAttr) -> Self::Fragment {
+    fn fragment_shader(&self, color: Self::VertexData) -> Self::Fragment {
         u32::from_le_bytes((color * 255.0).as_().into_array())
     }
 }

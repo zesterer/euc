@@ -11,6 +11,10 @@ use core::{
 ///
 /// Samplers use normalised coordinates (between 0 and 1) to sample textures. Often, samplers will combine this with
 /// a sampling algorithm such as filtering or domain warping.
+///
+/// Please note that texture coordinate axes are, where possible, consistent with the underlying texture implementation
+/// (i.e: +x and +y in sampler space correspond to the same directions as +x and +y in texture space). This behaviour
+/// is equivalent to that of Vulkan's texture access API.
 pub trait Sampler<const N: usize>
 where
     Self::Index: Denormalize<<Self::Texture as Texture<N>>::Index>,
@@ -32,7 +36,8 @@ where
     /// # Panics
     ///
     /// The behaviour of this function is *unspecified* (but not *undefined*) when the index is out of bounds. The
-    /// implementation is free to panic, or return any proper value.
+    /// implementation is free to panic, or return any proper value. Alternatively, some implementers may use out of
+    /// bounds access to implement special behaviours such as border colours or texture tiling.
     fn sample(&self, index: [Self::Index; N]) -> Self::Sample;
 
     /// Sample the texture at the given assumed-valid index.

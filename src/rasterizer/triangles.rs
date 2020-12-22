@@ -1,7 +1,6 @@
 use super::*;
 use crate::{CoordinateMode, YAxisDirection};
 use core::ops::{Mul, Add};
-use alloc::vec::Vec;
 use vek::*;
 
 /// A rasterizer that produces filled triangles.

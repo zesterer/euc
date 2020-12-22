@@ -11,12 +11,12 @@ struct Cube<'a> {
 
 impl<'a> Pipeline for Cube<'a> {
     type Vertex = usize;
-    type VertexAttr = Vec2<f32>;
+    type VertexData = Vec2<f32>;
     type Primitives = TriangleList;
     type Fragment = u32;
 
     #[inline]
-    fn vertex_shader(&self, v_index: &Self::Vertex) -> ([f32; 4], Self::VertexAttr) {
+    fn vertex_shader(&self, v_index: &Self::Vertex) -> ([f32; 4], Self::VertexData) {
         (
             (self.mvp * self.positions[*v_index]).into_array(),
             self.uvs[*v_index],
@@ -24,7 +24,7 @@ impl<'a> Pipeline for Cube<'a> {
     }
 
     #[inline]
-    fn fragment_shader(&self, v_uv: Self::VertexAttr) -> Self::Fragment {
+    fn fragment_shader(&self, v_uv: Self::VertexData) -> Self::Fragment {
         u32::from_le_bytes(self.sampler.sample(v_uv.into_array()).0)
     }
 }

@@ -64,10 +64,10 @@ impl<'a, T: Texture<N>, const N: usize> Texture<N> for &'a mut T {
 ///
 /// Targets necessarily require additional invariants to be upheld than textures for safe use. Because access to them
 /// may be parallelised, it is essential that there is a 1:1 mapping between each index and a unique memory location.
-/// If this is not upheld, Rust's 1 writer / many readers aliasing model may be broken. The `read_exclusive_unchecked`
-/// and `write_exclusive_unchecked` methods may only be called by callers that have already ensured that nothing else
-/// can access the target at the same time. In addition, the target must guarantee that no reads or writes escape
-/// either method. This can be done by having each texel be an `UnsafeCell`.
+/// If this is not upheld, Rust's one writer / many readers aliasing model may be broken. The
+/// `read_exclusive_unchecked` and `write_exclusive_unchecked` methods may only be invoked by callers that have already
+/// ensured that nothing else can access the target at the same time. In addition, the target must guarantee that no
+/// reads or writes escape either method. This can be done by having each texel be accessed through an `UnsafeCell`.
 pub trait Target: Texture<2, Index = usize> {
     /// Read a texel at the given assumed-valid index.
     ///
@@ -76,7 +76,8 @@ pub trait Target: Texture<2, Index = usize> {
     /// If the index is invalid, undefined behaviour can be assumed to occur. Ensure that the index is valid before
     /// use. Access to this index *must* be exclusive to avoid undefined behaviour (i.e: nothing else may be reading or
     /// writing to this index during the duration of this call). The caller must enforce this through a lock or some
-    /// other such mechanism with mutual exclusion properties.
+    /// other such mechanism with mutual exclusion properties. A sure-fire way to ensure that access is exclusive is to
+    /// first obtain an owned buffer or a mutable reference to one since both guarantee exclusivity.
     unsafe fn read_exclusive_unchecked(&self, index: [Self::Index; 2]) -> Self::Texel;
 
     /// Write a texel at the given assumed-valid index.
@@ -86,7 +87,8 @@ pub trait Target: Texture<2, Index = usize> {
     /// If the index is invalid, undefined behaviour can be assumed to occur. Ensure that the index is valid before
     /// use. Access to this index *must* be exclusive to avoid undefined behaviour (i.e: nothing else may be reading or
     /// writing to this index during the duration of this call). The caller must enforce this through a lock or some
-    /// other such mechanism with mutual exclusion properties.
+    /// other such mechanism with mutual exclusion properties. A sure-fire way to ensure that access is exclusive is to
+    /// first obtain an owned buffer or a mutable reference to one since both guarantee exclusivity.
     unsafe fn write_exclusive_unchecked(&self, index: [usize; 2], texel: Self::Texel);
 
     /// Write a texel at the given assumed-valid index.
@@ -94,8 +96,7 @@ pub trait Target: Texture<2, Index = usize> {
     /// # Safety
     ///
     /// If the index is invalid, undefined behaviour can be assumed to occur. Ensure that the index is valid before
-    /// use. Access to this index *must* be exclusive to avoid undefined behaviour (i.e: nothing else may be reading or
-    /// writing to this index during the duration of this call).
+    /// use.
     unsafe fn write_unchecked(&mut self, index: [usize; 2], texel: Self::Texel) {
         self.write_exclusive_unchecked(index, texel);
     }

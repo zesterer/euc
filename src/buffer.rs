@@ -80,18 +80,20 @@ impl<T: Clone, const N: usize> Texture<N> for Buffer<T, N> {
 impl<T: Clone> Target for Buffer<T, 2> {
     #[inline(always)]
     unsafe fn read_exclusive_unchecked(&self, index: [Self::Index; 2]) -> Self::Texel {
-        // TODO: This is *technically* UB since the `self` reference is still live in this context.
-        // Really, this cast is incorrect and the `items` `Vec` should just contain `UnsafeCell<T>`.
-        let items = &*(self.items.as_slice() as *const _ as *const [UnsafeCell<T>]);
-        (&*items.get_unchecked(self.linear_index(index)).get()).clone()
+        // This is safe to do (provided the caller has exclusive access to this buffer) because `Vec` internally uses
+        // a `RawVec`, which represents its internal buffer using raw pointers. Ergo, no other references to the items
+        // exist and so this does not break aliasing rules.
+        let item = self.items.get_unchecked(self.linear_index(index)) as *const _ as *const UnsafeCell<T>;
+        (&*((&*item).get())).clone()
     }
 
     #[inline(always)]
     unsafe fn write_exclusive_unchecked(&self, index: [usize; 2], texel: Self::Texel) {
-        // TODO: This is *technically* UB since the `self` reference is still live in this context.
-        // Really, this cast is incorrect and the `items` `Vec` should just contain `UnsafeCell<T>`.
-        let items = &*(self.items.as_slice() as *const _ as *const [UnsafeCell<T>]);
-        *items.get_unchecked(self.linear_index(index)).get() = texel;
+        // This is safe to do (provided the caller has exclusive access to this buffer) because `Vec` internally uses
+        // a `RawVec`, which represents its internal buffer using raw pointers. Ergo, no other references to the items
+        // exist and so this does not break aliasing rules.
+        let item = self.items.get_unchecked(self.linear_index(index)) as *const _ as *const UnsafeCell<T>;
+        *(&*item).get() = texel;
     }
 
 

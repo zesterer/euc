@@ -11,31 +11,31 @@ struct Teapot<'a> {
 }
 
 #[derive(Add, Mul, Clone)]
-struct VertexAttr {
+struct VertexData {
     wpos: Vec3<f32>,
     wnorm: Vec3<f32>,
 }
 
 impl<'a> Pipeline for Teapot<'a> {
     type Vertex = wavefront::Vertex<'a>;
-    type VertexAttr = VertexAttr;
+    type VertexData = VertexData;
     type Primitives = TriangleList;
     type Fragment = u32;
 
     fn depth_mode(&self) -> DepthMode { DepthMode::LESS_WRITE }
 
     #[inline(always)]
-    fn vertex_shader(&self, vertex: &Self::Vertex) -> ([f32; 4], Self::VertexAttr) {
+    fn vertex_shader(&self, vertex: &Self::Vertex) -> ([f32; 4], Self::VertexData) {
         let wpos = self.m * Vec4::from_point(Vec3::from(vertex.position()));
         let wnorm = self.m * Vec4::from_direction(-Vec3::from(vertex.normal().unwrap()));
         (
             (self.p * self.v * wpos).into_array(),
-            VertexAttr { wpos: wpos.xyz(), wnorm: wnorm.xyz() },
+            VertexData { wpos: wpos.xyz(), wnorm: wnorm.xyz() },
         )
     }
 
     #[inline(always)]
-    fn fragment_shader(&self, VertexAttr { wpos, wnorm }: Self::VertexAttr) -> Self::Fragment {
+    fn fragment_shader(&self, VertexData { wpos, wnorm }: Self::VertexData) -> Self::Fragment {
         let wnorm = wnorm.normalized();
         let light_dir = Vec3::<f32>::new(1.0, 1.0, 1.0).normalized();
         let cam_pos = Vec3::zero();
