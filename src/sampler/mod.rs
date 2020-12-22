@@ -52,7 +52,7 @@ where
 }
 
 /// A sampler that uses nearest-neighbor sampling.
-pub struct Nearest<T, I>(T, PhantomData<I>);
+pub struct Nearest<T, I = f32>(T, PhantomData<I>);
 
 impl<T, I> Nearest<T, I> {
     /// Create a new

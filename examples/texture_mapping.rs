@@ -6,7 +6,7 @@ struct Cube<'a> {
     mvp: Mat4<f32>,
     positions: &'a [Vec4<f32>],
     uvs: &'a [Vec2<f32>],
-    sampler: &'a Nearest<RgbaImage, f32>,
+    sampler: &'a Nearest<RgbaImage>,
 }
 
 impl<'a> Pipeline for Cube<'a> {

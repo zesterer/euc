@@ -75,7 +75,7 @@ pub enum YAxisDirection {
 pub struct CoordinateMode {
     pub handedness: Handedness,
     pub y_axis_direction: YAxisDirection,
-    pub z_clip_range: Range<f32>,
+    pub z_clip_range: Option<Range<f32>>,
 }
 
 impl CoordinateMode {
@@ -83,29 +83,36 @@ impl CoordinateMode {
     pub const OPENGL: Self = Self {
         handedness: Handedness::Right,
         y_axis_direction: YAxisDirection::Up,
-        z_clip_range: -1.0..1.0,
+        z_clip_range: Some(-1.0..1.0),
     };
 
     /// Vulkan-like coordinates (left-handed, y = down, 0 to 1 z clip range).
     pub const VULKAN: Self = Self {
         handedness: Handedness::Left,
         y_axis_direction: YAxisDirection::Down,
-        z_clip_range: 0.0..1.0,
+        z_clip_range: Some(0.0..1.0),
     };
 
     /// Metal-like coordinates (right-handed, y = down, 0 to 1 z clip range).
     pub const METAL: Self = Self {
         handedness: Handedness::Right,
         y_axis_direction: YAxisDirection::Down,
-        z_clip_range: 0.0..1.0,
+        z_clip_range: Some(0.0..1.0),
     };
 
     /// DirectX-like coordinates (left-handed, y = up, 0 to 1 z clip range).
     pub const DIRECTX: Self = Self {
         handedness: Handedness::Left,
         y_axis_direction: YAxisDirection::Up,
-        z_clip_range: 0.0..1.0,
+        z_clip_range: Some(0.0..1.0),
     };
+
+    pub fn without_z_clip(self) -> Self {
+        Self {
+            z_clip_range: None,
+            ..self
+        }
+    }
 }
 
 impl Default for CoordinateMode {
@@ -125,6 +132,10 @@ pub trait Pipeline: Sized {
     type VertexData: Clone + Mul<f32, Output=Self::VertexData> + Add<Output=Self::VertexData> + Send + Sync;
     type Primitives: PrimitiveKind<Self::VertexData>;
     type Fragment;
+
+    /// Returns whether the pixel buffer should be written to by this pipeline..
+    #[inline(always)]
+    fn pixel_mode(&self) -> bool { true }
 
     /// Returns the [`DepthMode`] of this pipeline.
     #[inline(always)]
@@ -182,15 +193,19 @@ pub trait Pipeline: Sized {
         P: Target<Texel = Self::Fragment> + Send + Sync + 'a,
         D: Target<Texel = f32> + Send + Sync + 'a,
     {
+        let pixel_write = self.pixel_mode();
         let depth_mode = self.depth_mode();
-        let target_size = pixels.size();
         let principal_x = depth.principal_axis() == 0;
-
-        // Ensure that the pixel target and depth target are compatible (but only if we need to actually use the depth
-        // target).
-        if depth_mode.uses_depth() {
-            assert_eq!(target_size, depth.size(), "Depth target size is compatible with the size of other target(s)");
-        }
+        let target_size = if pixel_write {
+            // Ensure that the pixel target and depth target are compatible (but only if we need to actually use the
+            // depth target).
+            if depth_mode.uses_depth() {
+                assert_eq!(pixels.size(), depth.size(), "Pixel target size is compatible with depth target size");
+            }
+            pixels.size()
+        } else {
+            depth.size()
+        };
 
         let mut vert_outs = vertices.into_iter().map(|v| self.vertex_shader(v.borrow())).peekable();
         let mut vert_out_queue = VecDeque::new();
@@ -223,13 +238,15 @@ pub trait Pipeline: Sized {
         };
 
         let emit_fragment = move |pos, vs_out_lerped: Self::VertexData, z: f32| {
-            let frag = self.fragment_shader(vs_out_lerped);
-            let old_px = unsafe { pixels.read_exclusive_unchecked(pos) };
-            let blended_px = self.blend_shader(old_px, frag);
-            unsafe { pixels.write_exclusive_unchecked(pos, blended_px); }
-
             if depth_mode.write {
                 unsafe { depth.write_exclusive_unchecked(pos, z); }
+            }
+
+            if pixel_write {
+                let frag = self.fragment_shader(vs_out_lerped);
+                let old_px = unsafe { pixels.read_exclusive_unchecked(pos) };
+                let blended_px = self.blend_shader(old_px, frag);
+                unsafe { pixels.write_exclusive_unchecked(pos, blended_px); }
             }
         };
 

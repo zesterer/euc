@@ -140,16 +140,16 @@ impl<T> Default for Empty<T> {
     }
 }
 
-impl<J: Clone, const N: usize> Texture<N> for Empty<J> {
+impl<T: Clone, const N: usize> Texture<N> for Empty<T> {
     type Index = usize;
-    type Texel = J;
+    type Texel = T;
     fn size(&self) -> [Self::Index; N] { [0; N] }
     fn read(&self, _: [Self::Index; N]) -> Self::Texel { panic!("Cannot read from an empty texture"); }
 }
 
-impl<T: Clone> Target for Empty<T> {
-    unsafe fn read_exclusive_unchecked(&self, _: [Self::Index; 2]) -> Self::Texel { panic!("Cannot read from an empty texture"); }
-    unsafe fn write_exclusive_unchecked(&self, _: [usize; 2], _: Self::Texel) { panic!("Cannot write to an empty texture"); }
+impl<T: Clone + Default> Target for Empty<T> {
+    unsafe fn read_exclusive_unchecked(&self, _: [Self::Index; 2]) -> Self::Texel { T::default() }
+    unsafe fn write_exclusive_unchecked(&self, _: [usize; 2], _: Self::Texel) {}
 }
 
 #[cfg(feature = "image")]
