@@ -9,7 +9,7 @@ impl Pipeline for Cube {
     type Vertex = (Vec4<f32>, Rgba<f32>);
     type VertexData = Rgba<f32>;
     type Primitives = TriangleList;
-    type Fragment = u32;
+    type Pixel = u32;
 
     #[inline(always)]
     fn vertex_shader(&self, (pos, color): &Self::Vertex) -> ([f32; 4], Self::VertexData) {
@@ -17,7 +17,7 @@ impl Pipeline for Cube {
     }
 
     #[inline(always)]
-    fn fragment_shader(&self, color: Self::VertexData) -> Self::Fragment {
+    fn fragment_shader(&self, color: Self::VertexData) -> Self::Pixel {
         u32::from_le_bytes((color * 255.0).as_().into_array())
     }
 }

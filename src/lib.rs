@@ -44,6 +44,9 @@
 
 extern crate alloc;
 
+#[cfg(feature = "std")]
+extern crate std;
+
 /// N-dimensional buffers that may be used as textures and render targets.
 pub mod buffer;
 /// Index buffer features.
@@ -64,7 +67,7 @@ pub mod texture;
 // Reexports
 pub use crate::{
     buffer::{Buffer, Buffer1d, Buffer2d, Buffer3d, Buffer4d},
-    pipeline::{Pipeline, DepthMode, CoordinateMode, Handedness, YAxisDirection},
+    pipeline::{Pipeline, DepthMode, PixelMode, CoordinateMode, Handedness, YAxisDirection},
     primitives::TriangleList,
     texture::{Texture, Target, Empty},
     rasterizer::CullMode,

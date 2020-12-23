@@ -13,7 +13,7 @@ impl<'a> Pipeline for Cube<'a> {
     type Vertex = usize;
     type VertexData = Vec2<f32>;
     type Primitives = TriangleList;
-    type Fragment = u32;
+    type Pixel = u32;
 
     #[inline]
     fn vertex_shader(&self, v_index: &Self::Vertex) -> ([f32; 4], Self::VertexData) {
@@ -24,7 +24,7 @@ impl<'a> Pipeline for Cube<'a> {
     }
 
     #[inline]
-    fn fragment_shader(&self, v_uv: Self::VertexData) -> Self::Fragment {
+    fn fragment_shader(&self, v_uv: Self::VertexData) -> Self::Pixel {
         u32::from_le_bytes(self.sampler.sample(v_uv.into_array()).0)
     }
 }

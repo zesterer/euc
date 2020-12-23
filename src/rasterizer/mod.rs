@@ -27,7 +27,7 @@ impl Default for CullMode {
 /// Rasterizers take an iterator of vertices and emit fragment positions. They do not, by themselves, perform shader
 /// execution, depth testing, etc.
 pub trait Rasterizer: Default + Send + Sync {
-    type Config;
+    type Config: Clone + Send + Sync;
 
     /// Rasterize the given vertices into fragments.
     ///
@@ -45,6 +45,7 @@ pub trait Rasterizer: Default + Send + Sync {
     unsafe fn rasterize<V, I, F, G>(
         &self,
         vertices: I,
+        target_area: ([usize; 2], [usize; 2]),
         target_size: [usize; 2],
         principal_x: bool,
         coordinate_mode: CoordinateMode,

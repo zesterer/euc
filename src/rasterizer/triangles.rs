@@ -13,7 +13,8 @@ impl Rasterizer for Triangles {
     unsafe fn rasterize<V, I, F, G>(
         &self,
         mut vertices: I,
-        target_size: [usize; 2],
+        (tgt_min, tgt_max): ([usize; 2], [usize; 2]),
+        tgt_size: [usize; 2],
         principal_x: bool,
         coordinate_mode: CoordinateMode,
         cull_mode: CullMode,
@@ -37,7 +38,7 @@ impl Rasterizer for Triangles {
             YAxisDirection::Up => Vec2::new(1.0, -1.0),
         };
 
-        let size = Vec2::from(target_size).map(|e: usize| e as f32);
+        let size = Vec2::<usize>::from(tgt_size).map(|e| e as f32);
 
         let to_ndc = Mat3::from_row_arrays([
             [2.0 / size.x, 0.0, -1.0],
@@ -101,10 +102,11 @@ impl Rasterizer for Triangles {
                 min: verts_screen.reduce(|a, b| Vec2::partial_min(a, b)),
                 max: verts_screen.reduce(|a, b| Vec2::partial_max(a, b)) + 1.0,
             };
-            let screen_max = Vec2::new(target_size[0] as f32, target_size[1] as f32);
+            let screen_min = Vec2::<usize>::from(tgt_min).map(|e| e as f32);
+            let screen_max = Vec2::<usize>::from(tgt_max).map(|e| e as f32);
             let tri_bounds_clamped = Aabr::<usize> {
-                min: tri_bounds.min.clamped(Vec2::zero(), screen_max).as_(),
-                max: tri_bounds.max.clamped(Vec2::zero(), screen_max).as_(),
+                min: tri_bounds.min.clamped(screen_min, screen_max).as_(),
+                max: tri_bounds.max.clamped(screen_min, screen_max).as_(),
             };
 
             // Iterate over fragment candidates within the triangle's bounding box
@@ -126,8 +128,8 @@ impl Rasterizer for Triangles {
                         .reduce(|a, b| Vec2::new(a.x.min(b.x), a.y.max(b.y)))
                         .map(|e| e.max(0.0) as usize);
                     Vec2::new(
-                        row_range.x.saturating_sub(1),
-                        (row_range.y + 1).min(target_size[0]),
+                        row_range.x.saturating_sub(1).max(tri_bounds_clamped.min.x),
+                        (row_range.y + 1).min(tri_bounds_clamped.max.x),
                     )
                 } else {
                     Vec2::new(tri_bounds_clamped.min.x, tri_bounds_clamped.max.x)
@@ -151,7 +153,7 @@ impl Rasterizer for Triangles {
                     let z: f32 = verts_hom.map2(w, |v, w| v.z * w).sum() * w_hom.z;
 
                     // Don't use `.contains(&z)`, it isn't inclusive
-                    if coordinate_mode.z_clip_range.clone().map_or(true, |clip_range| z >= clip_range.start && z <= clip_range.end) || true{
+                    if coordinate_mode.z_clip_range.clone().map_or(true, |clip_range| z >= clip_range.start && z <= clip_range.end) {
                         if test_depth([x, y], z) {
                             let vert_out_lerped = verts_out.clone().map2(w, |vo, w| vo * w).sum();
 

@@ -1,6 +1,6 @@
 use vek::*;
 use derive_more::{Add, Mul};
-use euc::{Pipeline, Buffer2d, Target, DepthMode, TriangleList, CullMode, Empty, Nearest, Texture, Sampler, CoordinateMode};
+use euc::{Pipeline, Buffer2d, Target, PixelMode, DepthMode, TriangleList, CullMode, Empty, Nearest, Texture, Sampler};
 use std::marker::PhantomData;
 
 struct TeapotShadow<'a> {
@@ -12,9 +12,9 @@ impl<'a> Pipeline for TeapotShadow<'a> {
     type Vertex = wavefront::Vertex<'a>;
     type VertexData = f32;
     type Primitives = TriangleList;
-    type Fragment = ();
+    type Pixel = ();
 
-    fn pixel_mode(&self) -> bool { false }
+    fn pixel_mode(&self) -> PixelMode { PixelMode::PASS }
     fn depth_mode(&self) -> DepthMode { DepthMode::LESS_WRITE }
 
     #[inline(always)]
@@ -23,7 +23,7 @@ impl<'a> Pipeline for TeapotShadow<'a> {
     }
 
     #[inline(always)]
-    fn fragment_shader(&self, d: Self::VertexData) -> Self::Fragment {}
+    fn fragment_shader(&self, d: Self::VertexData) -> Self::Pixel {}
 }
 
 struct Teapot<'a> {
@@ -46,7 +46,7 @@ impl<'a> Pipeline for Teapot<'a> {
     type Vertex = wavefront::Vertex<'a>;
     type VertexData = VertexData;
     type Primitives = TriangleList;
-    type Fragment = u32;
+    type Pixel = u32;
 
     fn depth_mode(&self) -> DepthMode { DepthMode::LESS_WRITE }
 
@@ -61,7 +61,7 @@ impl<'a> Pipeline for Teapot<'a> {
     }
 
     #[inline(always)]
-    fn fragment_shader(&self, VertexData { wpos, wnorm, screen }: Self::VertexData) -> Self::Fragment {
+    fn fragment_shader(&self, VertexData { wpos, wnorm, screen }: Self::VertexData) -> Self::Pixel {
         let wnorm = wnorm.normalized();
         let cam_pos = Vec3::zero();
         let cam_dir = (wpos - cam_pos).normalized();
@@ -89,7 +89,7 @@ impl<'a> Pipeline for Teapot<'a> {
 }
 
 fn main() {
-    let [w, h] = [800, 600];
+    let [w, h] = [1280, 960];
 
     let mut color = Buffer2d::fill([w, h], 0x0);
     let mut depth = Buffer2d::fill([w, h], 1.0);
@@ -101,7 +101,7 @@ fn main() {
 
     let mut i = 0;
     win.glutin_handle_basic_input(|win, input| {
-        let teapot_pos = Vec3::new(0.0, 0.0, -6.0);
+        let teapot_pos = Vec3::new(0.0, 0.0, -5.0);
         let light_pos = Vec3::<f32>::new(-6.0, 0.0, 3.0);
 
         let light_p = Mat4::perspective_fov_lh_zo(1.5, shadow.size()[0] as f32, shadow.size()[1] as f32, 0.1, 100.0);
