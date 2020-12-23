@@ -2,12 +2,14 @@ use crate::{
     texture::Target,
     rasterizer::Rasterizer,
     primitives::PrimitiveKind,
+    math::WeightedSum,
 };
 use alloc::{vec::Vec, collections::VecDeque};
 use core::{
     cmp::Ordering,
     ops::{Add, Mul, Range},
     borrow::Borrow,
+    marker::PhantomData,
 };
 
 /// Defines how a [`Pipeline`] will interact with the depth target.
@@ -152,9 +154,9 @@ impl Default for CoordinateMode {
 /// the behaviour of the pipeline even further.
 pub trait Pipeline: Sized {
     type Vertex;
-    type VertexData: Clone + Mul<f32, Output=Self::VertexData> + Add<Output=Self::VertexData> + Send + Sync;
+    type VertexData: Clone + WeightedSum + Send + Sync;
     type Primitives: PrimitiveKind<Self::VertexData>;
-    type Pixel;
+    type Pixel: Clone;
 
     /// Returns the [`PixelMode`] of this pipeline.
     #[inline(always)]
@@ -258,7 +260,7 @@ pub trait Pipeline: Sized {
 #[cfg(feature = "par")]
 fn render_par<Pipe, S, P, D>(
     pipeline: &Pipe,
-    mut fetch_vertex: S,
+    fetch_vertex: S,
     rasterizer_config: <<Pipe::Primitives as PrimitiveKind<Pipe::VertexData>>::Rasterizer as Rasterizer>::Config,
     tgt_size: [usize; 2],
     pixel: &mut P,
@@ -321,7 +323,7 @@ where
 
 unsafe fn render_inner<Pipe, S, P, D>(
     pipeline: &Pipe,
-    fetch_vertex: S,
+    mut fetch_vertex: S,
     rasterizer_config: <<Pipe::Primitives as PrimitiveKind<Pipe::VertexData>>::Rasterizer as Rasterizer>::Config,
     (tgt_min, tgt_max): ([usize; 2], [usize; 2]),
     tgt_size: [usize; 2],
@@ -362,13 +364,24 @@ where
         }
     };
 
+    let msaa_level = 1;
+    let mut near = core::cell::RefCell::new(fxhash::FxHashMap::default());
+    let near = &near;
     let emit_fragment = move |pos, vs_out_lerped: Pipe::VertexData, z: f32| {
         if depth_mode.write {
             depth.write_exclusive_unchecked(pos, z);
         }
 
         if pixel_write {
-            let frag = pipeline.fragment_shader(vs_out_lerped);
+            let frag = if msaa_level == 1 {
+                pipeline.fragment_shader(vs_out_lerped)
+            } else {
+                near
+                    .borrow_mut()
+                    .entry([pos[0] / msaa_level, pos[1] / msaa_level])
+                    .or_insert_with(|| pipeline.fragment_shader(vs_out_lerped))
+                    .clone()
+            };
             let old_px = pixel.read_exclusive_unchecked(pos);
             let blended_px = pipeline.blend_shader(old_px, frag);
             pixel.write_exclusive_unchecked(pos, blended_px);
@@ -376,7 +389,10 @@ where
     };
 
     <Pipe::Primitives as PrimitiveKind<Pipe::VertexData>>::Rasterizer::default().rasterize(
-        fetch_vertex,
+        core::iter::from_fn(move || {
+            near.borrow_mut().clear();
+            fetch_vertex.next()
+        }),
         (tgt_min, tgt_max),
         tgt_size,
         principal_x,

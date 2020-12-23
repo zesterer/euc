@@ -2,7 +2,7 @@ pub mod triangles;
 
 pub use self::triangles::Triangles;
 
-use crate::CoordinateMode;
+use crate::{CoordinateMode, math::WeightedSum};
 use core::ops::{Mul, Add};
 
 /// The face culling strategy used during rendering.
@@ -26,7 +26,7 @@ impl Default for CullMode {
 ///
 /// Rasterizers take an iterator of vertices and emit fragment positions. They do not, by themselves, perform shader
 /// execution, depth testing, etc.
-pub trait Rasterizer: Default + Send + Sync {
+pub trait Rasterizer: Default {
     type Config: Clone + Send + Sync;
 
     /// Rasterize the given vertices into fragments.
@@ -54,8 +54,8 @@ pub trait Rasterizer: Default + Send + Sync {
         emit_fragment: G,
     )
     where
-        V: Clone + Mul<f32, Output = V> + Add<Output = V> + Send + Sync,
+        V: Clone + WeightedSum,
         I: Iterator<Item = ([f32; 4], V)>,
-        F: Fn([usize; 2], f32) -> bool + Send + Sync,
-        G: Fn([usize; 2], V, f32) + Send + Sync;
+        F: FnMut([usize; 2], f32) -> bool,
+        G: FnMut([usize; 2], V, f32);
 }

@@ -18,6 +18,7 @@ vek = { version = "0.12", default-features = false, features = [] }
 image_ = { package = "image", version = "0.23", optional = true }
 num_cpus = { version = "1.13", optional = true }
 crossbeam-utils = { version = "0.8", optional = true }
+fxhash = { version = "0.2", optional = true }
 
 [features]
 default = ["std", "simd", "image", "par"]
@@ -26,7 +27,7 @@ libm = ["vek/libm"]
 nightly = []
 simd = ["vek/repr_simd"]
 image = ["image_"]
-par = ["std", "num_cpus", "crossbeam-utils"]
+par = ["std", "num_cpus", "crossbeam-utils", "fxhash"]
 
 [dev-dependencies]
 mini_gl_fb = "0.7.0"

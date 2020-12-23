@@ -39,7 +39,7 @@ struct Teapot<'a> {
 struct VertexData {
     wpos: Vec3<f32>,
     wnorm: Vec3<f32>,
-    screen: Vec2<f32>,
+    light_view_pos: Vec3<f32>,
 }
 
 impl<'a> Pipeline for Teapot<'a> {
@@ -54,14 +54,17 @@ impl<'a> Pipeline for Teapot<'a> {
     fn vertex_shader(&self, vertex: &Self::Vertex) -> ([f32; 4], Self::VertexData) {
         let wpos = self.m * Vec4::from_point(Vec3::from(vertex.position()));
         let wnorm = self.m * Vec4::from_direction(-Vec3::from(vertex.normal().unwrap()));
+
+        let light_view_pos = self.light_vp * Vec4::from_point(wpos);
+        let light_view_pos = light_view_pos.xyz() / light_view_pos.w;
         (
             (self.p * self.v * wpos).into_array(),
-            VertexData { wpos: wpos.xyz(), wnorm: wnorm.xyz(), screen: (self.p * self.v * wpos).xy()},
+            VertexData { wpos: wpos.xyz(), wnorm: wnorm.xyz(), light_view_pos },
         )
     }
 
     #[inline(always)]
-    fn fragment_shader(&self, VertexData { wpos, wnorm, screen }: Self::VertexData) -> Self::Pixel {
+    fn fragment_shader(&self, VertexData { wpos, wnorm, light_view_pos }: Self::VertexData) -> Self::Pixel {
         let wnorm = wnorm.normalized();
         let cam_pos = Vec3::zero();
         let cam_dir = (wpos - cam_pos).normalized();
@@ -74,8 +77,6 @@ impl<'a> Pipeline for Teapot<'a> {
         let specular = light_dir.reflected(wnorm).dot(-cam_dir).max(0.0).powf(30.0) * 3.0;
 
         // Shadow-mapping
-        let light_view_pos = self.light_vp * Vec4::from_point(wpos);
-        let light_view_pos = light_view_pos.xyz() / light_view_pos.w;
         let light_depth = self.shadow.sample((light_view_pos.xy() * Vec2::new(1.0, -1.0) * 0.5 + 0.5).into_array()) + 0.001;
         let depth = light_view_pos.z;
         let in_light = depth < light_depth;
@@ -101,7 +102,7 @@ fn main() {
 
     let mut i = 0;
     win.glutin_handle_basic_input(|win, input| {
-        let teapot_pos = Vec3::new(0.0, 0.0, -5.0);
+        let teapot_pos = Vec3::new(0.0, 0.0, -4.0);
         let light_pos = Vec3::<f32>::new(-6.0, 0.0, 3.0);
 
         let light_p = Mat4::perspective_fov_lh_zo(1.5, shadow.size()[0] as f32, shadow.size()[1] as f32, 0.1, 100.0);
