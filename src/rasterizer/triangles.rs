@@ -45,11 +45,11 @@ impl Rasterizer for Triangles {
             [0.0, 0.0, 1.0],
         ]);
 
-        let verts_hom_outs = core::iter::from_fn(move || {
+        let verts_hom_out = core::iter::from_fn(move || {
             Some(Vec3::new(vertices.next()?, vertices.next()?, vertices.next()?))
         });
 
-        verts_hom_outs.for_each(|verts_hom_out: Vec3<([f32; 4], V)>| {
+        verts_hom_out.for_each(|verts_hom_out: Vec3<([f32; 4], V)>| {
             // Calculate vertex shader outputs and vertex homogeneous coordinates
             let verts_hom = Vec3::new(verts_hom_out.x.0, verts_hom_out.y.0, verts_hom_out.z.0).map(Vec4::<f32>::from);
             let verts_out = Vec3::new(verts_hom_out.x.1, verts_hom_out.y.1, verts_hom_out.z.1);

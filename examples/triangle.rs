@@ -9,12 +9,10 @@ impl Pipeline for Triangle {
     type Primitives = TriangleList;
     type Pixel = u32;
 
-    #[inline(always)]
     fn vertex_shader(&self, pos: &[f32; 2]) -> ([f32; 4], Self::VertexData) {
         ([pos[0], pos[1], 0.0, 1.0], Vec2::new(pos[0], pos[1]))
     }
 
-    #[inline(always)]
     fn fragment_shader(&self, xy: Self::VertexData) -> Self::Pixel {
         u32::from_le_bytes([(xy.x * 255.0) as u8, (xy.y * 255.0) as u8, 0, 255]) // Red
     }

@@ -7,7 +7,7 @@
 
 # <img src="misc/example.png" alt="Utah teapot, rendered with shadow-mapping and phong shading at 60 fps"/>
 
-## Triangle Example
+## Example
 
 ```rust
 struct Triangle;
@@ -31,10 +31,10 @@ impl Pipeline for Triangle {
 let mut color = Buffer2d::new([640, 480], [0; 4]);
 
 Triangle.render(
-	&[[-1.0, -1.0], [ 1.0, -1.0], [ 0.0, 1.0]],
+    &[[-1.0, -1.0], [ 1.0, -1.0], [ 0.0, 1.0]],
     CullMode::Back,
-	&mut color,
-	&mut Empty::default(),
+    &mut color,
+    &mut Empty::default(),
 );
 ```
 
@@ -66,7 +66,7 @@ Modern graphics APIs are complex, verbose beasts. The code required to set them
 up properly requires a lot of beaurocratic mumbo jumbo. This problem has only
 become worse with the latest iteration of graphics APIs. Vulkan's canonical
 ['Hello Triangle' example](https://vulkan-tutorial.com/code/16_swap_chain_recreation.cpp)
-is, when shader code is included, 994 lines of code. Compare that to `euc`'s 36.
+is, when shader code is included, 994 lines of code. Compare that to `euc`'s 34.
 This is obviously not without tradeoff: Vulkan is a powerful modern graphics API
 that's designed for high-performance GPGPU on a vast array of hardware while
 `euc` is simply a humble software-renderer.
