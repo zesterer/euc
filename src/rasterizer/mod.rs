@@ -2,7 +2,7 @@ pub mod triangles;
 
 pub use self::triangles::Triangles;
 
-use crate::{CoordinateMode, math::WeightedSum};
+use crate::{CoordinateMode, Pipeline, math::WeightedSum};
 use core::ops::{Mul, Add};
 
 /// The face culling strategy used during rendering.
@@ -20,6 +20,30 @@ impl Default for CullMode {
     fn default() -> Self {
         CullMode::Back
     }
+}
+
+/// A trait for types that define an interface for blitting fragments to surfaces
+pub trait Blitter<V>: Sized {
+    fn target_size(&self) -> [usize; 2];
+    fn target_min(&self) -> [usize; 2];
+    fn target_max(&self) -> [usize; 2];
+
+    // Indicate to the blitter that a new primitive is now being rasterized.
+    fn begin_primitive(&mut self);
+
+    /// Test whether a fragment should be emitted with the given attributes.
+    ///
+    /// # Safety
+    ///
+    /// This function *must* be called with a position that is valid for size and bounds that this type provides.
+    unsafe fn test_fragment(&mut self, pos: [usize; 2], z: f32) -> bool;
+
+    /// Emit a fragment with the given attributes.
+    ///
+    /// # Safety
+    ///
+    /// This function *must* be called with a position that is valid for size and bounds that this type provides.
+    unsafe fn emit_fragment(&mut self, pos: [usize; 2], v_data: V, z: f32);
 }
 
 /// A trait that represents types that turn vertex streams into fragment coordinates.
@@ -42,20 +66,16 @@ pub trait Rasterizer: Default {
     ///
     /// `emit_fragment` must only be called with fragment positions that are valid for the `target_size` parameter
     /// provided. Undefined behaviour can be assumed to occur if this is not upheld.
-    unsafe fn rasterize<V, I, F, G>(
+    unsafe fn rasterize<V, I, B>(
         &self,
         vertices: I,
-        target_area: ([usize; 2], [usize; 2]),
-        target_size: [usize; 2],
         principal_x: bool,
         coordinate_mode: CoordinateMode,
         config: Self::Config,
-        test_depth: F,
-        emit_fragment: G,
+        blitter: B,
     )
     where
         V: Clone + WeightedSum,
         I: Iterator<Item = ([f32; 4], V)>,
-        F: FnMut([usize; 2], f32) -> bool,
-        G: FnMut([usize; 2], V, f32);
+        B: Blitter<V>;
 }

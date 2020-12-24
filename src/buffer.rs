@@ -56,6 +56,26 @@ impl<T, const N: usize> Buffer<T, N> {
 
     /// View this buffer as a linear mutable slice of elements.
     pub fn raw_mut(&mut self) -> &mut [T] { &mut self.items }
+
+    /// Get a mutable reference to the item at the given index.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the index is not within bounds.
+    pub fn get_mut(&mut self, index: [usize; N]) -> &mut T {
+        let idx = self.linear_index(index);
+        self.items.get_mut(idx).unwrap()
+    }
+
+    /// Get a mutable reference to the item at the given assumed-valid index.
+    ///
+    /// # Safety
+    ///
+    /// Undefined behaviour will occur if the index is not within bounds.
+    pub unsafe fn get_unchecked_mut(&mut self, index: [usize; N]) -> &mut T {
+        let idx = self.linear_index(index);
+        self.items.get_unchecked_mut(idx)
+    }
 }
 
 impl<T: Clone, const N: usize> Texture<N> for Buffer<T, N> {

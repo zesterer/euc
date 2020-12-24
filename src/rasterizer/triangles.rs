@@ -9,23 +9,23 @@ pub struct Triangles;
 impl Rasterizer for Triangles {
     type Config = CullMode;
 
-    unsafe fn rasterize<V, I, F, G>(
+    unsafe fn rasterize<V, I, B>(
         &self,
         mut vertices: I,
-        (tgt_min, tgt_max): ([usize; 2], [usize; 2]),
-        tgt_size: [usize; 2],
         principal_x: bool,
         coordinate_mode: CoordinateMode,
         cull_mode: CullMode,
-        mut test_depth: F,
-        mut emit_fragment: G,
+        mut blitter: B,
     )
     where
         V: Clone + WeightedSum,
         I: Iterator<Item = ([f32; 4], V)>,
-        F: FnMut([usize; 2], f32) -> bool,
-        G: FnMut([usize; 2], V, f32),
+        B: Blitter<V>,
     {
+        let tgt_size = blitter.target_size();
+        let tgt_min = blitter.target_min();
+        let tgt_max = blitter.target_max();
+
         let cull_dir = match cull_mode {
             CullMode::None => None,
             CullMode::Back => Some(1.0),
@@ -50,6 +50,8 @@ impl Rasterizer for Triangles {
         });
 
         verts_hom_out.for_each(|verts_hom_out: Vec3<([f32; 4], V)>| {
+            blitter.begin_primitive();
+
             // Calculate vertex shader outputs and vertex homogeneous coordinates
             let verts_hom = Vec3::new(verts_hom_out.x.0, verts_hom_out.y.0, verts_hom_out.z.0).map(Vec4::<f32>::from);
             let verts_out = Vec3::new(verts_hom_out.x.1, verts_hom_out.y.1, verts_hom_out.z.1);
@@ -175,10 +177,10 @@ impl Rasterizer for Triangles {
                         // Calculate the interpolated z coordinate for the depth target
                         let z: f32 = verts_hom.map(|v| v.z).dot(w_unbalanced);
 
-                        if test_depth([x, y], z) {
+                        if blitter.test_fragment([x, y], z) {
                             // Don't use `.contains(&z)`, it isn't inclusive
                             if coordinate_mode.z_clip_range.clone().map_or(true, |clip_range| z >= clip_range.start && z <= clip_range.end) {
-                                emit_fragment([x, y], V::weighted_sum(verts_out.as_slice(), w.as_slice()), z);
+                                blitter.emit_fragment([x, y], V::weighted_sum(verts_out.as_slice(), w.as_slice()), z);
                             }
                         }
                     }

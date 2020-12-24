@@ -3,6 +3,7 @@ use crate::{
     rasterizer::Rasterizer,
     primitives::PrimitiveKind,
     math::WeightedSum,
+    buffer::Buffer2d,
 };
 use alloc::{vec::Vec, collections::VecDeque};
 use core::{
@@ -103,6 +104,18 @@ pub struct CoordinateMode {
     pub z_clip_range: Option<Range<f32>>,
 }
 
+/// The anti-aliasing mode used by a pipeline.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub enum AaMode {
+    /// No anti-aliasing.
+    None,
+    /// Multi-sampling anti-aliasing.
+    ///
+    /// This form of anti-aliasing skips evaluating fragments in the middle of primitives while maintaining detail
+    /// along edges. The `level` should be within the range 1 to 6 (inclusive).
+    Msaa { level: u32 },
+}
+
 impl CoordinateMode {
     /// OpenGL-like coordinates (right-handed, y = up, -1 to 1 z clip range).
     pub const OPENGL: Self = Self {
@@ -169,6 +182,10 @@ pub trait Pipeline: Sized {
     /// Returns the [`CoordinateMode`] of this pipeline.
     #[inline(always)]
     fn coordinate_mode(&self) -> CoordinateMode { CoordinateMode::default() }
+
+    /// Returns the [`AaMode`] of this pipeline.
+    #[inline(always)]
+    fn aa_mode(&self) -> AaMode { AaMode::None }
 
     /// Transforms a [`Pipeline::Vertex`] into homogeneous NDCs (Normalised Device Coordinates) for the vertex and a
     /// [`Pipeline::VertexData`] to be interpolated and passed to the fragment shader.
@@ -290,7 +307,7 @@ where
     let depth = &*depth;
 
     crossbeam_utils::thread::scope(|s| {
-        for i in 0..threads {
+        for _ in 0..threads {
             // TODO: Respawning them each time is dumb
             s.spawn(move |_| {
                 loop {
@@ -334,7 +351,7 @@ where
 
 unsafe fn render_inner<Pipe, S, P, D>(
     pipeline: &Pipe,
-    mut fetch_vertex: S,
+    fetch_vertex: S,
     rasterizer_config: <<Pipe::Primitives as PrimitiveKind<Pipe::VertexData>>::Rasterizer as Rasterizer>::Config,
     (tgt_min, tgt_max): ([usize; 2], [usize; 2]),
     tgt_size: [usize; 2],
@@ -347,11 +364,11 @@ where
     P: Target<Texel = Pipe::Pixel> + Send + Sync,
     D: Target<Texel = f32> + Send + Sync,
 {
-    let pixel_write = pipeline.pixel_mode().write;
+    let write_pixels = pipeline.pixel_mode().write;
     let depth_mode = pipeline.depth_mode();
     for i in 0..2 {
         // Safety check
-        if pixel_write {
+        if write_pixels {
             assert!(tgt_min[i] <= pixel.size()[i], "{}, {}, {}", i, tgt_min[i], pixel.size()[i]);
             assert!(tgt_max[i] <= pixel.size()[i], "{}, {}, {}", i, tgt_min[i], pixel.size()[i]);
         }
@@ -363,53 +380,109 @@ where
 
     let principal_x = depth.principal_axis() == 0;
 
-    let pixel = &*pixel;
-    let depth = &*depth;
+    use crate::rasterizer::Blitter;
 
-    let test_depth = move |pos, z: f32| {
-        if let Some(test) = depth_mode.test {
-            let old_z = depth.read_exclusive_unchecked(pos);
-            z.partial_cmp(&old_z) == Some(test)
-        } else {
-            true
+    struct BlitterImpl<'a, Pipe: Pipeline, P, D> {
+        write_pixels: bool,
+        depth_mode: DepthMode,
+
+        tgt_min: [usize; 2],
+        tgt_max: [usize; 2],
+        tgt_size: [usize; 2],
+
+        pipeline: &'a Pipe,
+        pixel: &'a P,
+        depth: &'a D,
+        primitive_count: u64,
+
+        msaa_level: usize,
+        msaa_buf: Buffer2d<(u64, Option<Pipe::Pixel>)>
+    }
+
+    impl<'a, Pipe, P, D> Blitter<Pipe::VertexData> for BlitterImpl<'a, Pipe, P, D>
+    where
+        Pipe: Pipeline + Send + Sync,
+        P: Target<Texel = Pipe::Pixel> + Send + Sync,
+        D: Target<Texel = f32> + Send + Sync,
+    {
+        fn target_size(&self) -> [usize; 2] { self.tgt_size }
+        fn target_min(&self) -> [usize; 2] { self.tgt_min }
+        fn target_max(&self) -> [usize; 2] { self.tgt_max }
+
+        #[inline(always)]
+        fn begin_primitive(&mut self) {
+            self.primitive_count = self.primitive_count.wrapping_add(1);
         }
-    };
 
-    let msaa_level = 0;
-    let mut near = core::cell::RefCell::new(fxhash::FxHashMap::default());
-    let near = &near;
-    let emit_fragment = move |pos, vs_out_lerped: Pipe::VertexData, z: f32| {
-        if depth_mode.write {
-            depth.write_exclusive_unchecked(pos, z);
-        }
-
-        if pixel_write {
-            let frag = if msaa_level == 0 {
-                pipeline.fragment_shader(vs_out_lerped)
+        #[inline(always)]
+        unsafe fn test_fragment(&mut self, pos: [usize; 2], z: f32) -> bool {
+            if let Some(test) = self.depth_mode.test {
+                let old_z = self.depth.read_exclusive_unchecked(pos);
+                z.partial_cmp(&old_z) == Some(test)
             } else {
-                near
-                    .borrow_mut()
-                    .entry([pos[0] >> msaa_level, pos[1] >> msaa_level])
-                    .or_insert_with(|| pipeline.fragment_shader(vs_out_lerped))
-                    .clone()
-            };
-            let old_px = pixel.read_exclusive_unchecked(pos);
-            let blended_px = pipeline.blend_shader(old_px, frag);
-            pixel.write_exclusive_unchecked(pos, blended_px);
+                true
+            }
         }
+
+        #[inline(always)]
+        unsafe fn emit_fragment(&mut self, pos: [usize; 2], v_data: Pipe::VertexData, z: f32) {
+            if self.depth_mode.write {
+                self.depth.write_exclusive_unchecked(pos, z);
+            }
+
+            if self.write_pixels {
+                let frag = if self.msaa_level == 0 {
+                    self.pipeline.fragment_shader(v_data)
+                } else {
+                    let fetch_pixel = |pos: [usize; 2]| {
+                        // Safety: MSAA buffer will always be large enough
+                        let texel = self.msaa_buf
+                            .get_unchecked_mut([(pos[0] - self.tgt_min[0]) >> self.msaa_level, (pos[1] - self.tgt_min[1]) >> self.msaa_level]);
+                        if texel.0 != self.primitive_count {
+                            texel.0 = self.primitive_count;
+                            texel.1 = Some(self.pipeline.fragment_shader(v_data));
+                        }
+                        // Safety: We know this entry will always be occupied due to the code above
+                        texel.1.clone().unwrap_or_else(|| core::hint::unreachable_unchecked())
+                    };
+
+                    fetch_pixel(pos)
+                };
+                let old_px = self.pixel.read_exclusive_unchecked(pos);
+                let blended_px = self.pipeline.blend_shader(old_px, frag);
+                self.pixel.write_exclusive_unchecked(pos, blended_px);
+            }
+        }
+    }
+
+    let msaa_level = match pipeline.aa_mode() {
+        AaMode::None => 0,
+        AaMode::Msaa { level } => level.max(1).min(6) as usize,
     };
 
     <Pipe::Primitives as PrimitiveKind<Pipe::VertexData>>::Rasterizer::default().rasterize(
-        core::iter::from_fn(move || {
-            near.borrow_mut().clear();
-            fetch_vertex.next()
-        }),
-        (tgt_min, tgt_max),
-        tgt_size,
+        fetch_vertex,
         principal_x,
         pipeline.coordinate_mode(),
         rasterizer_config,
-        test_depth,
-        emit_fragment,
+        BlitterImpl {
+            write_pixels,
+            depth_mode,
+
+            tgt_size,
+            tgt_min,
+            tgt_max,
+
+            pipeline,
+            pixel,
+            depth,
+            primitive_count: 0,
+
+            msaa_level,
+            msaa_buf: Buffer2d::fill_with(
+                [((tgt_max[0] - tgt_min[0]) >> msaa_level) + 1, ((tgt_max[1] - tgt_min[1]) >> msaa_level) + 1],
+                || (u64::MAX, None),
+            ),
+        },
     );
 }

@@ -1,6 +1,6 @@
 use vek::*;
 use derive_more::{Add, Mul};
-use euc::{Pipeline, Buffer2d, Target, PixelMode, DepthMode, TriangleList, CullMode, Empty, Nearest, Texture, Sampler};
+use euc::{Pipeline, Buffer2d, Target, PixelMode, DepthMode, TriangleList, CullMode, Empty, Nearest, Texture, Sampler, AaMode};
 use std::marker::PhantomData;
 
 struct TeapotShadow<'a> {
@@ -49,6 +49,7 @@ impl<'a> Pipeline for Teapot<'a> {
     type Pixel = u32;
 
     fn depth_mode(&self) -> DepthMode { DepthMode::LESS_WRITE }
+    fn aa_mode(&self) -> AaMode { AaMode::Msaa { level: 2 } }
 
     #[inline(always)]
     fn vertex_shader(&self, vertex: &Self::Vertex) -> ([f32; 4], Self::VertexData) {
