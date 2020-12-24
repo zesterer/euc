@@ -21,7 +21,7 @@ crossbeam-utils = { version = "0.8", optional = true }
 fxhash = { version = "0.2", optional = true }
 
 [features]
-default = ["std", "simd", "image", "par"]
+default = ["std", "image", "par"]
 std = ["vek/std"]
 libm = ["vek/libm"]
 nightly = []

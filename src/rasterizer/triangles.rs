@@ -1,6 +1,5 @@
 use super::*;
 use crate::{CoordinateMode, YAxisDirection};
-use core::ops::{Mul, Add};
 use vek::*;
 
 /// A rasterizer that produces filled triangles.
@@ -105,6 +104,12 @@ impl Rasterizer for Triangles {
                 max: (verts_screen.reduce(|a, b| Vec2::partial_max(a, b)) + 1.0).clamped(screen_min, screen_max).as_(),
             };
 
+            // Calculate change in vertex weights for each pixel
+            let weights_at = |p: Vec2<f32>| coords_to_weights * Vec3::new(p.x, p.y, 1.0);
+            let w_hom_origin = weights_at(Vec2::zero());
+            let w_hom_dx = (weights_at(Vec2::unit_x() * 1000.0) - w_hom_origin) / 1000.0;
+            let w_hom_dy = (weights_at(Vec2::unit_y() * 1000.0) - w_hom_origin) / 1000.0;
+
             // Iterate over fragment candidates within the triangle's bounding box
             (tri_bounds_clamped.min.y..tri_bounds_clamped.max.y).for_each(|y| {
                 // More precisely find the required draw bounds for this row with a little maths
@@ -154,31 +159,32 @@ impl Rasterizer for Triangles {
                     (row_bounds.y.ceil() as usize).min(tri_bounds_clamped.max.x),
                 );
 
+                // Stupid version
+                //let row_range = Vec2::new(tri_bounds_clamped.min.x, tri_bounds_clamped.max.x);
+
+                // Find the barycentric weights for the start of this row
+                let mut w_hom = w_hom_origin + w_hom_dy * y as f32 + w_hom_dx * row_range.x as f32;
+
                 for x in row_range.x..row_range.y {
-                    // Calculate fragment center
-                    let p = Vec3::new(x as f32 + 0.5, y as f32 + 0.5, 1.0);
-
                     // Calculate vertex weights to determine vs_out lerping and intersection
-                    let w_hom = coords_to_weights * p;
-                    let w = Vec2::new(w_hom.x / w_hom.z, w_hom.y / w_hom.z);
-                    let w = Vec3::new(w.x, w.y, 1.0 - w.x - w.y);
+                    let w_unbalanced = Vec3::new(w_hom.x, w_hom.y, w_hom.z - w_hom.x - w_hom.y);
+                    let w = w_unbalanced / w_hom.z;
 
-                    // Test the weights to determine whether the fragment is outside the triangle
-                    if w.map(|e| e < 0.0).reduce_or() {
-                        continue;
-                    }
+                    // Test the weights to determine whether the fragment is inside the triangle
+                    if w.map(|e| e >= 0.0).reduce_and() {
+                        // Calculate the interpolated z coordinate for the depth target
+                        let z: f32 = verts_hom.map(|v| v.z).dot(w_unbalanced);
 
-                    // Calculate the interpolated z coordinate for the depth target
-                    let z: f32 = verts_hom.map2(w, |v, w| v.z * w).sum() * w_hom.z;
-
-                    // Don't use `.contains(&z)`, it isn't inclusive
-                    if coordinate_mode.z_clip_range.clone().map_or(true, |clip_range| z >= clip_range.start && z <= clip_range.end) {
                         if test_depth([x, y], z) {
-                            let vert_out_lerped = V::weighted_sum(verts_out.as_slice(), w.as_slice());
-
-                            emit_fragment([x, y], vert_out_lerped, z);
+                            // Don't use `.contains(&z)`, it isn't inclusive
+                            if coordinate_mode.z_clip_range.clone().map_or(true, |clip_range| z >= clip_range.start && z <= clip_range.end) {
+                                emit_fragment([x, y], V::weighted_sum(verts_out.as_slice(), w.as_slice()), z);
+                            }
                         }
                     }
+
+                    // Update barycentric weight ready for the next fragment
+                    w_hom += w_hom_dx;
                 }
             });
         });

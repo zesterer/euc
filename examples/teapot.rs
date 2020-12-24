@@ -69,7 +69,7 @@ impl<'a> Pipeline for Teapot<'a> {
         let cam_pos = Vec3::zero();
         let cam_dir = (wpos - cam_pos).normalized();
         let light_dir = (wpos - self.light_pos).normalized();
-        let surf_color = Rgba::new(0.8, 1.0, 0.7, 1.0);
+        let surf_color = Rgba::new(1.0, 0.8, 0.7, 1.0);
 
         // Phong reflection model
         let ambient = 0.1;
@@ -102,7 +102,7 @@ fn main() {
 
     let mut i = 0;
     win.glutin_handle_basic_input(|win, input| {
-        let teapot_pos = Vec3::new(0.0, 0.0, -4.0);
+        let teapot_pos = Vec3::new(0.0, 0.0, -6.0);
         let light_pos = Vec3::<f32>::new(-6.0, 0.0, 3.0);
 
         let light_p = Mat4::perspective_fov_lh_zo(1.5, shadow.size()[0] as f32, shadow.size()[1] as f32, 0.1, 100.0);
@@ -111,11 +111,15 @@ fn main() {
 
         let p = Mat4::perspective_fov_lh_zo(1.3, w as f32, h as f32, 0.01, 100.0);
         let v = Mat4::<f32>::identity();
-        let m = Mat4::<f32>::translation_3d(-teapot_pos)
-            * Mat4::rotation_x((i as f32 * 0.03).sin() * 0.4)
-            * Mat4::rotation_y((i as f32 * 0.005) * 4.0)
-            * Mat4::rotation_z((i as f32 * 0.04).cos() * 0.4);
+        let m = {
+            //let i = 100;
+            Mat4::<f32>::translation_3d(-teapot_pos)
+                * Mat4::rotation_x((i as f32 * 0.03).sin() * 0.4)
+                * Mat4::rotation_y((i as f32 * 0.005) * 4.0)
+                * Mat4::rotation_z((i as f32 * 0.04).cos() * 0.4)
+        };
 
+        let start_time = std::time::Instant::now();
         color.clear(0x0);
         depth.clear(1.0);
         shadow.clear(1.0);
@@ -135,6 +139,11 @@ fn main() {
             &mut color,
             &mut depth,
         );
+
+        if i % 60 == 0 {
+            let elapsed = start_time.elapsed();
+            println!("Time = {:?}, FPS = {}", elapsed, 1.0 / elapsed.as_secs_f32());
+        }
 
         win.update_buffer(color.raw());
         win.redraw();

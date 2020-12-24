@@ -5,6 +5,7 @@ pub trait WeightedSum: Sized {
 }
 
 impl<T: Clone + Mul<f32, Output = T> + Add<Output = T>> WeightedSum for T {
+    #[inline(always)]
     fn weighted_sum(values: &[Self], weights: &[f32]) -> Self {
         values[1..].iter().zip(weights[1..].iter()).fold(values[0].clone() * weights[0], |a, (x, w)| a + x.clone() * *w)
     }

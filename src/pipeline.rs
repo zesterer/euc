@@ -273,15 +273,19 @@ where
     D: Target<Texel = f32> + Send + Sync,
 {
     use std::thread;
+    use core::sync::atomic::{AtomicUsize, Ordering};
 
     // TODO: Don't pull all vertices at once
     let vertices = fetch_vertex.collect::<Vec<_>>();
     let threads = num_cpus::get();
     assert!(tgt_size[1] >= threads); // TODO: Remove this limitation
-    let rows_each = tgt_size[1] / threads;
+    let groups = threads * 8;
+    let rows_each = tgt_size[1] / groups;
+    let group_index = AtomicUsize::new(0);
 
     let vertices = &vertices;
     let rasterizer_config = &rasterizer_config;
+    let group_index = &group_index;
     let pixel = &*pixel;
     let depth = &*depth;
 
@@ -289,15 +293,22 @@ where
         for i in 0..threads {
             // TODO: Respawning them each time is dumb
             s.spawn(move |_| {
-                let (row_start, rows) = if i == threads - 1 {
-                    (0, tgt_size[1] - (threads - 1) * rows_each)
-                } else {
-                    (tgt_size[1] - (i + 1) * rows_each, rows_each)
-                };
-                let tgt_min = [0, row_start];
-                let tgt_max = [tgt_size[0], row_start + rows];
-                // Safety: we have exclusive access to our specific regions of `pixel` and `depth`
-                unsafe { render_inner(pipeline, vertices.iter().cloned(), rasterizer_config.clone(), (tgt_min, tgt_max), tgt_size, pixel, depth) }
+                loop {
+                    let i = group_index.fetch_add(1, Ordering::Relaxed);
+                    if i >= groups {
+                        break;
+                    }
+
+                    let (row_start, rows) = if i == groups - 1 {
+                        (i * rows_each, tgt_size[1] - (groups - 1) * rows_each)
+                    } else {
+                        (i * rows_each, rows_each)
+                    };
+                    let tgt_min = [0, row_start];
+                    let tgt_max = [tgt_size[0], row_start + rows];
+                    // Safety: we have exclusive access to our specific regions of `pixel` and `depth`
+                    unsafe { render_inner(pipeline, vertices.iter().cloned(), rasterizer_config.clone(), (tgt_min, tgt_max), tgt_size, pixel, depth) }
+                }
             });
         }
     }).unwrap();
@@ -341,12 +352,12 @@ where
     for i in 0..2 {
         // Safety check
         if pixel_write {
-            assert!(tgt_min[i] <= pixel.size()[i]);
-            assert!(tgt_max[i] <= pixel.size()[i]);
+            assert!(tgt_min[i] <= pixel.size()[i], "{}, {}, {}", i, tgt_min[i], pixel.size()[i]);
+            assert!(tgt_max[i] <= pixel.size()[i], "{}, {}, {}", i, tgt_min[i], pixel.size()[i]);
         }
         if depth_mode.uses_depth() {
-            assert!(tgt_min[i] <= depth.size()[i]);
-            assert!(tgt_max[i] <= depth.size()[i]);
+            assert!(tgt_min[i] <= depth.size()[i], "{}, {}, {}", i, tgt_min[i], depth.size()[i]);
+            assert!(tgt_max[i] <= depth.size()[i], "{}, {}, {}", i, tgt_min[i], depth.size()[i]);
         }
     }
 
@@ -364,7 +375,7 @@ where
         }
     };
 
-    let msaa_level = 1;
+    let msaa_level = 0;
     let mut near = core::cell::RefCell::new(fxhash::FxHashMap::default());
     let near = &near;
     let emit_fragment = move |pos, vs_out_lerped: Pipe::VertexData, z: f32| {
@@ -373,12 +384,12 @@ where
         }
 
         if pixel_write {
-            let frag = if msaa_level == 1 {
+            let frag = if msaa_level == 0 {
                 pipeline.fragment_shader(vs_out_lerped)
             } else {
                 near
                     .borrow_mut()
-                    .entry([pos[0] / msaa_level, pos[1] / msaa_level])
+                    .entry([pos[0] >> msaa_level, pos[1] >> msaa_level])
                     .or_insert_with(|| pipeline.fragment_shader(vs_out_lerped))
                     .clone()
             };
