@@ -99,10 +99,10 @@ fn main() {
 
     let model = wavefront::Obj::from_file("examples/data/teapot.obj").unwrap();
 
-    let mut win = mini_gl_fb::gotta_go_fast("Teapot", w as f64, h as f64);
+    let (mut event_loop, mut win) = mini_gl_fb::gotta_go_fast("Teapot", w as f64, h as f64);
 
     let mut i = 0;
-    win.glutin_handle_basic_input(|win, input| {
+    win.glutin_handle_basic_input(&mut event_loop, |win, input| {
         let teapot_pos = Vec3::new(0.0, 0.0, -6.0);
         let light_pos = Vec3::<f32>::new(-6.0, 0.0, 3.0);
 
