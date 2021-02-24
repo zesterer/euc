@@ -43,7 +43,7 @@ pub trait Blitter<V>: Sized {
     /// # Safety
     ///
     /// This function *must* be called with a position that is valid for size and bounds that this type provides.
-    unsafe fn emit_fragment(&mut self, pos: [usize; 2], v_data: V, z: f32);
+    unsafe fn emit_fragment<F: FnMut([f32; 2]) -> V>(&mut self, pos: [usize; 2], get_v_data: F, z: f32);
 }
 
 /// A trait that represents types that turn vertex streams into fragment coordinates.

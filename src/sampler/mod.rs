@@ -1,10 +1,14 @@
+pub mod nearest;
+pub mod linear;
+
+pub use self::{
+    nearest::Nearest,
+    linear::Linear,
+};
+
 use crate::{
     texture::Texture,
     math::*,
-};
-use core::{
-    ops::Mul,
-    marker::PhantomData,
 };
 
 /// A trait that describes a sampler of a texture.
@@ -15,10 +19,7 @@ use core::{
 /// Please note that texture coordinate axes are, where possible, consistent with the underlying texture implementation
 /// (i.e: +x and +y in sampler space correspond to the same directions as +x and +y in texture space). This behaviour
 /// is equivalent to that of Vulkan's texture access API.
-pub trait Sampler<const N: usize>
-where
-    Self::Index: Denormalize<<Self::Texture as Texture<N>>::Index>,
-{
+pub trait Sampler<const N: usize> {
     /// The type used to perform sampling.
     type Index: Clone;
 
@@ -48,40 +49,5 @@ where
     /// use.
     unsafe fn sample_unchecked(&self, index: [Self::Index; N]) -> Self::Sample {
         self.sample(index)
-    }
-}
-
-/// A sampler that uses nearest-neighbor sampling.
-pub struct Nearest<T, I = f32>(T, PhantomData<I>);
-
-impl<T, I> Nearest<T, I> {
-    /// Create a new
-    pub fn new(texture: T) -> Self {
-        Self(texture, PhantomData)
-    }
-}
-
-impl<'a, T, I, const N: usize> Sampler<N> for Nearest<T, I>
-where
-    T: Texture<N>,
-    I: Clone + Mul<Output = I> + Denormalize<T::Index>,
-{
-    type Index = I;
-
-    type Sample = T::Texel;
-
-    type Texture = T;
-
-    #[inline(always)]
-    fn raw_texture(&self) -> &Self::Texture { &self.0 }
-
-    #[inline(always)]
-    fn sample(&self, index: [Self::Index; N]) -> Self::Sample {
-        unsafe { self.raw_texture().read_unchecked(I::denormalize_array(index, self.raw_texture().size())) }
-    }
-
-    #[inline(always)]
-    unsafe fn sample_unchecked(&self, index: [Self::Index; N]) -> Self::Sample {
-        self.raw_texture().read_unchecked(I::denormalize_array(index, self.raw_texture().size()))
     }
 }

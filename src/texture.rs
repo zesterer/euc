@@ -1,3 +1,5 @@
+use core::marker::PhantomData;
+
 /// A trait implemented by types that may be treated as textures.
 pub trait Texture<const N: usize> {
     /// The type used to index into the texture.
@@ -59,6 +61,19 @@ impl<'a, T: Texture<N>, const N: usize> Texture<N> for &'a mut T {
     fn read(&self, index: [Self::Index; N]) -> Self::Texel { (**self).read(index) }
     unsafe fn read_unchecked(&self, index: [Self::Index; N]) -> Self::Texel { (**self).read_unchecked(index) }
 }
+
+// impl<'a, T: Clone, F: Fn([usize; N]) -> T, const N: usize> Texture<N> for (F, [usize; N], PhantomData<T>) {
+//     type Index = usize;
+//     type Texel = T;
+//     fn size(&self) -> [Self::Index; N] { self.1 }
+//     fn read(&self, index: [Self::Index; N]) -> Self::Texel {
+//         for i in 0..N {
+//             assert!(index[i] < self.1[i]);
+//         }
+//         self.0(index)
+//     }
+//     unsafe fn read_unchecked(&self, index: [Self::Index; N]) -> Self::Texel { self.0(index) }
+// }
 
 /// A trait implemented by 2-dimensional textures that may be treated as render targets.
 ///

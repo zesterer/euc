@@ -40,7 +40,7 @@
 
 #![no_std]
 
-#![feature(min_const_generics, array_map, type_alias_impl_trait)]
+#![feature(array_map, type_alias_impl_trait)]
 
 extern crate alloc;
 
@@ -71,6 +71,6 @@ pub use crate::{
     primitives::TriangleList,
     texture::{Texture, Target, Empty},
     rasterizer::CullMode,
-    sampler::{Sampler, Nearest},
+    sampler::{Sampler, Nearest, Linear},
     index::IndexedVertices,
 };

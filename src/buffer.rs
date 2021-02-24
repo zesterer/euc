@@ -64,7 +64,10 @@ impl<T, const N: usize> Buffer<T, N> {
     /// This function will panic if the index is not within bounds.
     pub fn get_mut(&mut self, index: [usize; N]) -> &mut T {
         let idx = self.linear_index(index);
-        self.items.get_mut(idx).unwrap()
+        match self.items.get_mut(idx) {
+            Some(item) => item,
+            None => panic!("Attempted to read buffer of size {:?} at out-of-bounds location {:?}", self.size, index),
+        }
     }
 
     /// Get a mutable reference to the item at the given assumed-valid index.
@@ -88,7 +91,10 @@ impl<T: Clone, const N: usize> Texture<N> for Buffer<T, N> {
 
     #[inline(always)]
     fn read(&self, index: [Self::Index; N]) -> Self::Texel {
-        self.items[self.linear_index(index)].clone()
+        self.items
+            .get(self.linear_index(index))
+            .unwrap_or_else(|| panic!("Attempted to read buffer of size {:?} at out-of-bounds location {:?}", self.size(), index))
+            .clone()
     }
 
     #[inline(always)]

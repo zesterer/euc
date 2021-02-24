@@ -2,6 +2,9 @@ use super::*;
 use crate::{CoordinateMode, YAxisDirection};
 use vek::*;
 
+#[cfg(feature = "micromath")]
+use micromath_::F32Ext;
+
 /// A rasterizer that produces filled triangles.
 #[derive(Copy, Clone, Debug, Default)]
 pub struct Triangles;
@@ -157,7 +160,7 @@ impl Rasterizer for Triangles {
 
                 // Now we have screen-space bounds for the row. Clean it up and clamp it to the screen bounds
                 let row_range = Vec2::new(
-                    (row_bounds.x as usize).max(tri_bounds_clamped.min.x),
+                    (row_bounds.x as usize).saturating_sub(1).max(tri_bounds_clamped.min.x),
                     (row_bounds.y.ceil() as usize).min(tri_bounds_clamped.max.x),
                 );
 
@@ -180,7 +183,17 @@ impl Rasterizer for Triangles {
                         if blitter.test_fragment([x, y], z) {
                             // Don't use `.contains(&z)`, it isn't inclusive
                             if coordinate_mode.z_clip_range.clone().map_or(true, |clip_range| z >= clip_range.start && z <= clip_range.end) {
-                                blitter.emit_fragment([x, y], V::weighted_sum(verts_out.as_slice(), w.as_slice()), z);
+                                let get_v_data = |[x, y]: [f32; 2]| {
+                                    let w_hom = w_hom_origin + w_hom_dy * y + w_hom_dx * x;
+
+                                    // Calculate vertex weights to determine vs_out lerping and intersection
+                                    let w_unbalanced = Vec3::new(w_hom.x, w_hom.y, w_hom.z - w_hom.x - w_hom.y);
+                                    let w = w_unbalanced / w_hom.z;
+
+                                    V::weighted_sum(verts_out.as_slice(), w.as_slice())
+                                };
+
+                                blitter.emit_fragment([x, y], get_v_data, z);
                             }
                         }
                     }

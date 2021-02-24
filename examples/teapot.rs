@@ -1,6 +1,6 @@
 use vek::*;
 use derive_more::{Add, Mul};
-use euc::{Pipeline, Buffer2d, Target, PixelMode, DepthMode, TriangleList, CullMode, Empty, Nearest, Texture, Sampler, AaMode};
+use euc::{Pipeline, Buffer2d, Target, PixelMode, DepthMode, TriangleList, CullMode, Empty, Linear, Texture, Sampler, AaMode};
 use std::marker::PhantomData;
 
 struct TeapotShadow<'a> {
@@ -12,6 +12,7 @@ impl<'a> Pipeline for TeapotShadow<'a> {
     type Vertex = wavefront::Vertex<'a>;
     type VertexData = f32;
     type Primitives = TriangleList;
+    type Fragment = f32;
     type Pixel = ();
 
     fn pixel_mode(&self) -> PixelMode { PixelMode::PASS }
@@ -23,7 +24,10 @@ impl<'a> Pipeline for TeapotShadow<'a> {
     }
 
     #[inline(always)]
-    fn fragment_shader(&self, d: Self::VertexData) -> Self::Pixel {}
+    fn fragment_shader(&self, d: Self::VertexData) -> Self::Fragment { 0.0 }
+
+    #[inline(always)]
+    fn blend_shader(&self, old: Self::Pixel, new: Self::Fragment) {}
 }
 
 struct Teapot<'a> {
@@ -31,7 +35,7 @@ struct Teapot<'a> {
     v: Mat4<f32>,
     p: Mat4<f32>,
     light_pos: Vec3<f32>,
-    shadow: Nearest<&'a Buffer2d<f32>>,
+    shadow: Linear<&'a Buffer2d<f32>>,
     light_vp: Mat4<f32>,
 }
 
@@ -46,10 +50,11 @@ impl<'a> Pipeline for Teapot<'a> {
     type Vertex = wavefront::Vertex<'a>;
     type VertexData = VertexData;
     type Primitives = TriangleList;
+    type Fragment = Rgba<f32>;
     type Pixel = u32;
 
     fn depth_mode(&self) -> DepthMode { DepthMode::LESS_WRITE }
-    fn aa_mode(&self) -> AaMode { AaMode::Msaa { level: 2 } }
+    fn aa_mode(&self) -> AaMode { AaMode::Msaa { level: 1 } }
 
     #[inline(always)]
     fn vertex_shader(&self, vertex: &Self::Vertex) -> ([f32; 4], Self::VertexData) {
@@ -65,7 +70,7 @@ impl<'a> Pipeline for Teapot<'a> {
     }
 
     #[inline(always)]
-    fn fragment_shader(&self, VertexData { wpos, wnorm, light_view_pos }: Self::VertexData) -> Self::Pixel {
+    fn fragment_shader(&self, VertexData { wpos, wnorm, light_view_pos }: Self::VertexData) -> Self::Fragment {
         let wnorm = wnorm.normalized();
         let cam_pos = Vec3::zero();
         let cam_dir = (wpos - cam_pos).normalized();
@@ -78,15 +83,17 @@ impl<'a> Pipeline for Teapot<'a> {
         let specular = light_dir.reflected(wnorm).dot(-cam_dir).max(0.0).powf(30.0) * 3.0;
 
         // Shadow-mapping
-        let light_depth = self.shadow.sample((light_view_pos.xy() * Vec2::new(1.0, -1.0) * 0.5 + 0.5).into_array()) + 0.001;
-        let depth = light_view_pos.z;
-        let in_light = depth < light_depth;
+        //let light_depth = self.shadow.sample((light_view_pos.xy() * Vec2::new(1.0, -1.0) * 0.5 + 0.5).into_array()) + 0.001;
+        //let depth = light_view_pos.z;
+        let in_light = true;//depth < light_depth;
 
         let light = ambient + if in_light { diffuse + specular } else { 0.0 };
-        let color = surf_color * light;
+        surf_color * light
+    }
 
-        //let color = Rgba::zero() + self.shadow.sample(((screen + 1.0) * 0.5).into_array());
-        u32::from_le_bytes(color.map(|e| e.clamped(0.0, 1.0) * 255.0).as_().into_array())
+    #[inline(always)]
+    fn blend_shader(&self, _old: Self::Pixel, new: Self::Fragment) -> Self::Pixel {
+        u32::from_le_bytes(new.map(|e| e.clamped(0.0, 1.0) * 255.0).as_().into_array())
     }
 }
 
@@ -95,7 +102,7 @@ fn main() {
 
     let mut color = Buffer2d::fill([w, h], 0x0);
     let mut depth = Buffer2d::fill([w, h], 1.0);
-    let mut shadow = Buffer2d::fill([1024; 2], 1.0);
+    let mut shadow = Buffer2d::fill([512; 2], 1.0);
 
     let model = wavefront::Obj::from_file("examples/data/teapot.obj").unwrap();
 
@@ -134,7 +141,7 @@ fn main() {
         );
 
         // Colour pass
-        Teapot { m, v, p, light_pos, shadow: Nearest::new(&shadow), light_vp: light_vp }.render(
+        Teapot { m, v, p, light_pos, shadow: Linear::new(&shadow), light_vp: light_vp }.render(
             model.vertices(),
             CullMode::Back,
             &mut color,
