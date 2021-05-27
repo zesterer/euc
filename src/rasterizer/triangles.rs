@@ -73,7 +73,7 @@ impl Rasterizer for Triangles {
                 .unwrap_or(false)
             {
                 return; // Cull the triangle
-            } else if winding < 0.0 {
+            } else if winding >= 0.0 {
                 // Reverse vertex order
                 (verts_hom.zyx(), verts_euc.zyx(), verts_out.zyx())
             } else {
