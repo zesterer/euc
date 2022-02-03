@@ -32,7 +32,7 @@ par = ["std", "num_cpus", "crossbeam-utils", "fxhash"]
 micromath = ["micromath_"]
 
 [dev-dependencies]
-mini_gl_fb = "0.8.0"
+minifb = "0.20"
 wavefront = "0.1.3"
 criterion = "0.3.3"
 image_ = { package = "image", version = "0.23" }

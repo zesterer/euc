@@ -173,4 +173,4 @@ euc = { version = "x.y.z", default-features = false, features = ["libm"] }
 
 - MIT license (LICENSE-MIT or http://opensource.org/licenses/MIT)
 
-at the disgression of the user.
+at the discretion of the user.

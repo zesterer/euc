@@ -1,6 +1,7 @@
 use vek::*;
 use derive_more::{Add, Mul};
-use euc::{Pipeline, Buffer2d, Target, PixelMode, DepthMode, TriangleList, CullMode, Empty, Linear, Texture, Sampler, AaMode};
+use euc::{Pipeline, Buffer2d, Target, PixelMode, DepthMode, TriangleList, CullMode, Empty, Linear, Texture, Sampler, AaMode, Unit, Clamped};
+use minifb::{Key, MouseButton, MouseMode, Window, WindowOptions};
 use std::marker::PhantomData;
 
 struct TeapotShadow<'a> {
@@ -12,7 +13,7 @@ impl<'a> Pipeline for TeapotShadow<'a> {
     type Vertex = wavefront::Vertex<'a>;
     type VertexData = f32;
     type Primitives = TriangleList;
-    type Fragment = f32;
+    type Fragment = Unit;
     type Pixel = ();
 
     fn pixel_mode(&self) -> PixelMode { PixelMode::PASS }
@@ -24,7 +25,7 @@ impl<'a> Pipeline for TeapotShadow<'a> {
     }
 
     #[inline(always)]
-    fn fragment_shader(&self, d: Self::VertexData) -> Self::Fragment { 0.0 }
+    fn fragment_shader(&self, _: Self::VertexData) -> Self::Fragment { Unit }
 
     #[inline(always)]
     fn blend_shader(&self, old: Self::Pixel, new: Self::Fragment) {}
@@ -35,7 +36,7 @@ struct Teapot<'a> {
     v: Mat4<f32>,
     p: Mat4<f32>,
     light_pos: Vec3<f32>,
-    shadow: Linear<&'a Buffer2d<f32>>,
+    shadow: Clamped<Linear<&'a Buffer2d<f32>>>,
     light_vp: Mat4<f32>,
 }
 
@@ -80,20 +81,23 @@ impl<'a> Pipeline for Teapot<'a> {
         // Phong reflection model
         let ambient = 0.1;
         let diffuse = wnorm.dot(-light_dir).max(0.0) * 0.5;
-        let specular = light_dir.reflected(wnorm).dot(-cam_dir).max(0.0).powf(30.0) * 3.0;
+        let specular = (-light_dir).reflected(wnorm).dot(-cam_dir).max(0.0).powf(30.0) * 3.0;
 
         // Shadow-mapping
-        //let light_depth = self.shadow.sample((light_view_pos.xy() * Vec2::new(1.0, -1.0) * 0.5 + 0.5).into_array()) + 0.001;
-        //let depth = light_view_pos.z;
-        let in_light = true;//depth < light_depth;
+        let light_depth = self.shadow.sample((light_view_pos.xy() * Vec2::new(1.0, -1.0) * 0.5 + 0.5).into_array()) + 0.0001;
+        let depth = light_view_pos.z;
+        let in_light = depth < light_depth;
 
         let light = ambient + if in_light { diffuse + specular } else { 0.0 };
         surf_color * light
     }
 
     #[inline(always)]
-    fn blend_shader(&self, _old: Self::Pixel, new: Self::Fragment) -> Self::Pixel {
-        u32::from_le_bytes(new.map(|e| e.clamped(0.0, 1.0) * 255.0).as_().into_array())
+    fn blend_shader(&self, _old: Self::Pixel, rgba: Self::Fragment) -> Self::Pixel {
+        let rgba = rgba.map(|e| e.clamped(0.0, 1.0) * 255.0).as_();
+        // The window's framebuffer uses BGRA format
+        let bgra = Rgba::new(rgba.b, rgba.g, rgba.r, rgba.a);
+        u32::from_le_bytes(bgra.into_array())
     }
 }
 
@@ -106,57 +110,73 @@ fn main() {
 
     let model = wavefront::Obj::from_file("examples/data/teapot.obj").unwrap();
 
-    let (mut event_loop, mut win) = mini_gl_fb::gotta_go_fast("Teapot", w as f64, h as f64);
+    let mut win = Window::new("Teapot", w, h, WindowOptions::default()).unwrap();
+
+    let mut ori = Vec2::new(0.0, 0.0);
+    let mut dist = 6.0;
+    let mut old_mouse_pos = (0.0, 0.0);
 
     let mut i = 0;
-    win.glutin_handle_basic_input(&mut event_loop, |win, input| {
-        let teapot_pos = Vec3::new(0.0, 0.0, -6.0);
-        let light_pos = Vec3::<f32>::new(-6.0, 0.0, 3.0);
-
-        let light_p = Mat4::perspective_fov_lh_zo(1.5, shadow.size()[0] as f32, shadow.size()[1] as f32, 0.1, 100.0);
-        let light_v = Mat4::look_at_lh(light_pos, -teapot_pos, Vec3::unit_y());
-        let light_vp = light_p * light_v;
-
-        let p = Mat4::perspective_fov_lh_zo(1.3, w as f32, h as f32, 0.01, 100.0);
-        let v = Mat4::<f32>::identity();
-        let m = {
-            //let i = 100;
-            Mat4::<f32>::translation_3d(-teapot_pos)
-                * Mat4::rotation_x((i as f32 * 0.03).sin() * 0.4)
-                * Mat4::rotation_y((i as f32 * 0.005) * 4.0)
-                * Mat4::rotation_z((i as f32 * 0.04).cos() * 0.4)
-        };
-
+    while win.is_open() && !win.is_key_down(Key::Escape) {
         let start_time = std::time::Instant::now();
+
+        // Clear the render targets ready for the next frame
         color.clear(0x0);
         depth.clear(1.0);
         shadow.clear(1.0);
 
+        // Update camera as the mouse moves
+        let mouse_pos = win.get_mouse_pos(MouseMode::Pass).unwrap_or_default();
+        if win.get_mouse_down(MouseButton::Left) {
+            ori.x -= (mouse_pos.1 - old_mouse_pos.1) * 0.003;
+            ori.y += (mouse_pos.0 - old_mouse_pos.0) * 0.003;
+        }
+        if win.get_mouse_down(MouseButton::Right) {
+            dist = (dist + (mouse_pos.1 - old_mouse_pos.1) as f32 * 0.01).max(1.0).min(20.0);
+        }
+        old_mouse_pos = mouse_pos;
+
+        // Position of objects in the scene
+        let teapot_pos = Vec3::new(0.0, 0.0, 0.0);
+        let light_pos = Vec3::<f32>::new(-8.0, 5.0, -5.0);
+
+        // Set up the light matrix
+        let light_p = Mat4::perspective_fov_lh_zo(0.75, shadow.size()[0] as f32, shadow.size()[1] as f32, 0.1, 100.0);
+        let light_v = Mat4::look_at_lh(light_pos, -teapot_pos, Vec3::unit_y());
+        let light_vp = light_p * light_v;
+
+        // Set up the camera matrix
+        let p = Mat4::perspective_fov_lh_zo(1.3, w as f32, h as f32, 0.01, 100.0);
+        let v = Mat4::<f32>::identity()
+            * Mat4::translation_3d(Vec3::new(0.0, 0.0, dist));
+        // Set up the teapot matrix
+        let m = Mat4::<f32>::translation_3d(-teapot_pos)
+            * Mat4::rotation_x(core::f32::consts::PI)
+            * Mat4::rotation_x(ori.x)
+            * Mat4::rotation_y(ori.y);
+
         // Shadow pass
         TeapotShadow { mvp: light_vp * m, phantom: PhantomData }.render(
             model.vertices(),
-            CullMode::Back,
+            CullMode::None,
             &mut Empty::default(),
             &mut shadow,
         );
 
         // Colour pass
-        Teapot { m, v, p, light_pos, shadow: Linear::new(&shadow), light_vp: light_vp }.render(
+        Teapot { m, v, p, light_pos, shadow: Clamped::new(Linear::new(&shadow)), light_vp: light_vp }.render(
             model.vertices(),
             CullMode::Back,
             &mut color,
             &mut depth,
         );
 
+        win.update_with_buffer(color.raw(), w, h).unwrap();
+
         if i % 60 == 0 {
             let elapsed = start_time.elapsed();
-            println!("Time = {:?}, FPS = {}", elapsed, 1.0 / elapsed.as_secs_f32());
+            win.set_title(&format!("Teapot (Time = {:?}, FPS = {})", elapsed, 1.0 / elapsed.as_secs_f32()));
         }
-
-        win.update_buffer(color.raw());
-        win.redraw();
-
         i += 1;
-        true
-    });
+    }
 }

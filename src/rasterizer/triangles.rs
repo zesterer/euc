@@ -87,7 +87,7 @@ impl Rasterizer for Triangles {
                 let cb = Vec3::new(verts_hom.y.x, verts_hom.y.y, verts_hom.y.w) - c;
                 let n = ca.cross(cb);
                 let rec_det = if n.magnitude_squared() > 0.0 {
-                    1.0 / n.dot(c)
+                    1.0 / n.dot(c).min(-core::f32::EPSILON)
                 } else {
                     1.0
                 };

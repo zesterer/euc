@@ -1,6 +1,7 @@
 use euc::{Buffer2d, Pipeline, Target, TriangleList, CullMode, Sampler, Nearest};
 use image_::RgbaImage;
-use vek::{Mat4, Vec2, Vec3, Vec4};
+use vek::{Mat4, Vec2, Vec3, Vec4, Rgba};
+use minifb::{Key, Window, WindowOptions};
 
 struct Cube<'a> {
     mvp: Mat4<f32>,
@@ -13,6 +14,7 @@ impl<'a> Pipeline for Cube<'a> {
     type Vertex = usize;
     type VertexData = Vec2<f32>;
     type Primitives = TriangleList;
+    type Fragment = Rgba<f32>;
     type Pixel = u32;
 
     #[inline]
@@ -24,8 +26,12 @@ impl<'a> Pipeline for Cube<'a> {
     }
 
     #[inline]
-    fn fragment_shader(&self, v_uv: Self::VertexData) -> Self::Pixel {
-        u32::from_le_bytes(self.sampler.sample(v_uv.into_array()).0)
+    fn fragment_shader(&self, v_uv: Self::VertexData) -> Self::Fragment {
+        Rgba::from(self.sampler.sample(v_uv.into_array()).0).map(|e: u8| e as f32)
+    }
+
+    fn blend_shader(&self, _: Self::Pixel, color: Self::Fragment) -> Self::Pixel {
+        u32::from_le_bytes(color.map(|e| e as u8).into_array())
     }
 }
 
@@ -109,17 +115,17 @@ fn main() {
     };
     let sampler = Nearest::new(texture);
 
-    let mut win = mini_gl_fb::gotta_go_fast("Cube", w as f64, h as f64);
+    let mut win = Window::new("Texture Mapping", w, h, WindowOptions::default()).unwrap();
 
     let mut i = 0;
-    win.glutin_handle_basic_input(|win, input| {
+    while win.is_open() && !win.is_key_down(Key::Escape) {
         let p = Mat4::perspective_fov_rh_no(1.4, w as f32, h as f32, 0.01, 100.0);
         let v = Mat4::<f32>::translation_3d(Vec3::new(0.0, 0.0, -2.0))
             * Mat4::<f32>::scaling_3d(0.6)
             * Mat4::rotation_x(0.6);
-        let m = Mat4::rotation_x((i as f32 * 0.04).sin() * 0.4)
-            * Mat4::rotation_y((i as f32 * 0.008) * 4.0)
-            * Mat4::rotation_z((i as f32 * 0.06).cos() * 0.4);
+        let m = Mat4::rotation_x((i as f32 * 0.004).sin() * 0.4)
+            * Mat4::rotation_y((i as f32 * 0.0008) * 4.0)
+            * Mat4::rotation_z((i as f32 * 0.006).cos() * 0.4);
 
         color.clear(180);
         depth.clear(1.0);
@@ -144,10 +150,8 @@ fn main() {
             &mut depth,
         );
 
-        win.update_buffer(color.raw());
-        win.redraw();
+        win.update_with_buffer(color.raw(), w, h).unwrap();
 
         i += 1;
-        true
-    });
+    }
 }

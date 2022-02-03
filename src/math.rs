@@ -4,6 +4,13 @@ pub trait WeightedSum: Sized {
     fn weighted_sum(values: &[Self], weights: &[f32]) -> Self;
 }
 
+#[derive(Copy, Clone)]
+pub struct Unit;
+
+impl WeightedSum for Unit {
+    fn weighted_sum(_: &[Self], _: &[f32]) -> Self { Unit }
+}
+
 impl<T: Clone + Mul<f32, Output = T> + Add<Output = T>> WeightedSum for T {
     #[inline(always)]
     fn weighted_sum(values: &[Self], weights: &[f32]) -> Self {
