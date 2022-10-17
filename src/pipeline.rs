@@ -311,10 +311,10 @@ where
     let pixel = &*pixel;
     let depth = &*depth;
 
-    crossbeam_utils::thread::scope(|s| {
+    thread::scope(|s| {
         for _ in 0..threads {
             // TODO: Respawning them each time is dumb
-            s.spawn(move |_| {
+            s.spawn(move || {
                 loop {
                     let i = group_index.fetch_add(1, Ordering::Relaxed);
                     if i >= groups {
@@ -329,11 +329,12 @@ where
                     let tgt_min = [0, row_start];
                     let tgt_max = [tgt_size[0], row_start + rows];
                     // Safety: we have exclusive access to our specific regions of `pixel` and `depth`
+                    // TODO: Actually, unchecked_exclusive is UB, fix this
                     unsafe { render_inner(pipeline, vertices.iter().cloned(), rasterizer_config.clone(), (tgt_min, tgt_max), tgt_size, pixel, depth) }
                 }
             });
         }
-    }).unwrap();
+    });
 }
 
 fn render_seq<Pipe, S, P, D>(

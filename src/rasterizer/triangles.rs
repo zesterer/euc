@@ -173,7 +173,8 @@ impl Rasterizer for Triangles {
                 for x in row_range.x..row_range.y {
                     // Calculate vertex weights to determine vs_out lerping and intersection
                     let w_unbalanced = Vec3::new(w_hom.x, w_hom.y, w_hom.z - w_hom.x - w_hom.y);
-                    let w = w_unbalanced / w_hom.z;
+                    let w_hom_z_inv = w_hom.z.recip();
+                    let w = w_unbalanced * w_hom_z_inv;
 
                     // Test the weights to determine whether the fragment is inside the triangle
                     if w.map(|e| e >= 0.0).reduce_and() {
@@ -188,7 +189,7 @@ impl Rasterizer for Triangles {
 
                                     // Calculate vertex weights to determine vs_out lerping and intersection
                                     let w_unbalanced = Vec3::new(w_hom.x, w_hom.y, w_hom.z - w_hom.x - w_hom.y);
-                                    let w = w_unbalanced / w_hom.z;
+                                    let w = w_unbalanced * w_hom_z_inv;
 
                                     V::weighted_sum(verts_out.as_slice(), w.as_slice())
                                 };

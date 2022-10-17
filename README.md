@@ -63,7 +63,7 @@ Below are a few circumstances in which you might want to use `euc`.
 ### Learning and experimentation
 
 Modern graphics APIs are complex, verbose beasts. The code required to set them
-up properly requires a lot of beaurocratic mumbo jumbo. This problem has only
+up properly requires a lot of bureaucratic mumbo jumbo. This problem has only
 become worse with the latest iteration of graphics APIs. Vulkan's canonical
 ['Hello Triangle' example](https://vulkan-tutorial.com/code/16_swap_chain_recreation.cpp)
 is, when shader code is included, 994 lines of code. Compare that to `euc`'s 34.
@@ -84,7 +84,7 @@ models as icons to be displayed in-game later.
 `euc` is also more than fast enough for soft real-time applications such as UI
 rendering, particularly for state-driven UIs that only update when events occur.
 In addition, tricky rendering problems like font rasterization become much
-simpler to solver on the CPU.
+simpler to solve on the CPU.
 
 ### Embedded
 

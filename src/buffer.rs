@@ -122,6 +122,11 @@ impl<T: Clone> Target for Buffer<T, 2> {
         *(&*item).get() = texel;
     }
 
+    #[inline(always)]
+    unsafe fn write_unchecked(&mut self, index: [usize; 2], texel: Self::Texel) {
+        let idx = self.linear_index(index);
+        *self.items.get_unchecked_mut(idx) = texel;
+    }
 
     #[inline(always)]
     fn write(&mut self, index: [usize; 2], texel: Self::Texel) {
