@@ -252,7 +252,7 @@ pub trait Pipeline: Sized {
             },
         };
 
-        // Produce an iterator over vertices (using the vertex shader and geometry shader to product them)
+        // Produce an iterator over vertices (using the vertex shader and geometry shader to produce them)
         let mut vert_outs = vertices.into_iter().map(|v| self.vertex_shader(v.borrow())).peekable();
         let mut vert_out_queue = VecDeque::new();
         let fetch_vertex = core::iter::from_fn(move || {
@@ -397,7 +397,7 @@ where
         primitive_count: u64,
 
         msaa_level: usize,
-        msaa_buf: Buffer2d<(u64, Option<Pipe::Fragment>)>
+        msaa_buf: Option<Buffer2d<(u64, Option<Pipe::Fragment>)>>,
     }
 
     impl<'a, Pipe, P, D> BlitterImpl<'a, Pipe, P, D>
@@ -410,6 +410,8 @@ where
         unsafe fn msaa_fragment<F: FnMut([usize; 2]) -> Pipe::VertexData>(&mut self, pos: [usize; 2], mut get_v_data: F) -> Pipe::Fragment {
             // Safety: MSAA buffer will always be large enough
             let texel = self.msaa_buf
+                .as_mut()
+                .unwrap()
                 .get_mut([pos[0] + 1, pos[1] + 1]);
             if texel.0 != self.primitive_count {
                 texel.0 = self.primitive_count;
@@ -490,7 +492,7 @@ where
 
     let msaa_level = match pipeline.aa_mode() {
         AaMode::None => 0,
-        AaMode::Msaa { level } => level.max(1).min(6) as usize,
+        AaMode::Msaa { level } => level.max(0).min(6) as usize,
     };
 
     <Pipe::Primitives as PrimitiveKind<Pipe::VertexData>>::Rasterizer::default().rasterize(
@@ -512,10 +514,14 @@ where
             primitive_count: 0,
 
             msaa_level,
-            msaa_buf: Buffer2d::fill_with(
-                [((tgt_max[0] - tgt_min[0]) >> msaa_level) + 3, ((tgt_max[1] - tgt_min[1]) >> msaa_level) + 3],
-                || (u64::MAX, None),
-            ),
+            msaa_buf: if msaa_level > 0 {
+                Some(Buffer2d::fill_with(
+                    [((tgt_max[0] - tgt_min[0]) >> msaa_level) + 3, ((tgt_max[1] - tgt_min[1]) >> msaa_level) + 3],
+                    || (u64::MAX, None),
+                ))
+            } else {
+                None
+            },
         },
     );
 }
