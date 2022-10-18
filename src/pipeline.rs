@@ -300,34 +300,29 @@ where
     // TODO: Don't pull all vertices at once
     let vertices = fetch_vertex.collect::<Vec<_>>();
     let threads = num_cpus::get();
-    assert!(tgt_size[1] >= threads); // TODO: Remove this limitation
-    let groups = threads * 8;
-    let rows_each = tgt_size[1] / groups;
-    let group_index = AtomicUsize::new(0);
+    let row = AtomicUsize::new(0);
+    let group_rows = 32;
+    let needed_threads = (tgt_size[1] / group_rows).min(threads);
 
     let vertices = &vertices;
     let rasterizer_config = &rasterizer_config;
-    let group_index = &group_index;
     let pixel = &*pixel;
     let depth = &*depth;
 
     thread::scope(|s| {
-        for _ in 0..threads {
+        for _ in 0..needed_threads {
             // TODO: Respawning them each time is dumb
-            s.spawn(move || {
+            s.spawn(|| {
                 loop {
-                    let i = group_index.fetch_add(1, Ordering::Relaxed);
-                    if i >= groups {
+                    let row_start = row.fetch_add(group_rows, Ordering::Relaxed);
+                    let row_end = if row_start >= tgt_size[1] {
                         break;
-                    }
-
-                    let (row_start, rows) = if i == groups - 1 {
-                        (i * rows_each, tgt_size[1] - (groups - 1) * rows_each)
                     } else {
-                        (i * rows_each, rows_each)
+                        (row_start + group_rows).min(tgt_size[1])
                     };
+
                     let tgt_min = [0, row_start];
-                    let tgt_max = [tgt_size[0], row_start + rows];
+                    let tgt_max = [tgt_size[0], row_end];
                     // Safety: we have exclusive access to our specific regions of `pixel` and `depth`
                     // TODO: Actually, unchecked_exclusive is UB, fix this
                     unsafe { render_inner(pipeline, vertices.iter().cloned(), rasterizer_config.clone(), (tgt_min, tgt_max), tgt_size, pixel, depth) }

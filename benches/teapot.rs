@@ -164,7 +164,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function_over_inputs(
         "teapot",
         |b, &size| teapot_benchmark(b, size),
-        &[[32, 32], [640, 480], [1024, 800], [2048, 1600], [4096, 3200]],
+        &[[1, 1], [32, 32], [640, 480], [1024, 800], [2048, 1600], [4096, 3200]],
     );
 }
 
