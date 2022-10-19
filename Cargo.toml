@@ -14,7 +14,7 @@ exclude = [
 ]
 
 [dependencies]
-vek = { version = "0.12", default-features = false, features = [] }
+vek = { version = "0.15", default-features = false, features = [] }
 image_ = { package = "image", version = "0.23", optional = true }
 num_cpus = { version = "1.13", optional = true }
 fxhash = { version = "0.2", optional = true }
@@ -35,7 +35,7 @@ minifb = "0.20"
 wavefront = "0.2"
 criterion = "0.3.3"
 image_ = { package = "image", version = "0.23" }
-vek = "0.12.1"
+vek = "0.15"
 derive_more = "0.99"
 
 [lib]

@@ -1,5 +1,5 @@
 use vek::*;
-use euc::{Pipeline, Buffer2d, Target, TriangleList, CullMode, IndexedVertices};
+use euc::{Pipeline, Buffer2d, Target, TriangleList, IndexedVertices};
 use minifb::{Key, Window, WindowOptions};
 
 struct Cube {
@@ -75,7 +75,6 @@ fn main() {
 
         Cube { mvp }.render(
             IndexedVertices::new(INDICES, VERTICES),
-            CullMode::Back,
             &mut color,
             &mut depth,
         );

@@ -142,7 +142,6 @@ fn teapot_benchmark(b: &mut Bencher, &[width, height]: &[usize; 2]) {
         // Shadow pass
         TeapotShadow { mvp: light_vp * m, phantom: PhantomData }.render(
             model.vertices(),
-            CullMode::None,
             &mut Empty::default(),
             &mut shadow,
         );
@@ -150,7 +149,6 @@ fn teapot_benchmark(b: &mut Bencher, &[width, height]: &[usize; 2]) {
         // Colour pass
         Teapot { m, v, p, light_pos, shadow: Clamped::new(Linear::new(&shadow)), light_vp: light_vp }.render(
             model.vertices(),
-            CullMode::Back,
             &mut color,
             &mut depth,
         );

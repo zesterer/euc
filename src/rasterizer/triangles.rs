@@ -96,7 +96,7 @@ impl Rasterizer for Triangles {
             };
 
             // Ensure we didn't accidentally end up with infinities or NaNs
-            debug_assert!(coords_to_weights.into_row_array().iter().all(|e| e.is_finite()));
+            assert!(coords_to_weights.into_row_array().iter().all(|e| e.is_finite()));
 
             // Convert vertex coordinates to screen space
             let verts_screen = verts_euc.map(|euc| size * (euc.xy() * Vec2::new(0.5, -0.5) + 0.5));

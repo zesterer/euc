@@ -1,24 +1,24 @@
-use euc::{Buffer2d, Pipeline, TriangleList, CullMode, Empty};
+use euc::{Buffer2d, Pipeline, TriangleList, Empty};
 use minifb::{Key, Window, WindowOptions};
 use vek::*;
 
 struct Triangle;
 
 impl Pipeline for Triangle {
-    type Vertex = [f32; 2];
-    type VertexData = Vec2<f32>;
+    type Vertex = ([f32; 2], Rgba<f32>);
+    type VertexData = Rgba<f32>;
     type Primitives = TriangleList;
-    type Fragment = Vec2<f32>;
+    type Fragment = Rgba<f32>;
     type Pixel = u32;
 
-    fn vertex_shader(&self, pos: &[f32; 2]) -> ([f32; 4], Self::VertexData) {
-        ([pos[0], pos[1], 0.0, 1.0], Vec2::new(pos[0], pos[1]))
+    fn vertex_shader(&self, (pos, col): &Self::Vertex) -> ([f32; 4], Self::VertexData) {
+        ([pos[0], pos[1], 0.0, 1.0], *col)
     }
 
-    fn fragment_shader(&self, xy: Self::VertexData) -> Self::Fragment { xy }
+    fn fragment_shader(&self, col: Self::VertexData) -> Self::Fragment { col }
 
-    fn blend_shader(&self, _: Self::Pixel, xy: Self::Fragment) -> Self::Pixel {
-        u32::from_le_bytes([(xy.x * 255.0) as u8, (xy.y * 255.0) as u8, 255, 255])
+    fn blend_shader(&self, _: Self::Pixel, col: Self::Fragment) -> Self::Pixel {
+        u32::from_le_bytes(col.map(|e| (e * 255.0) as u8).into_array())
     }
 }
 fn main() {
@@ -27,8 +27,11 @@ fn main() {
     let mut win = Window::new("Triangle", w, h, WindowOptions::default()).unwrap();
 
     Triangle.render(
-        &[[-1.0, -1.0], [1.0, -1.0], [0.0, 1.0]],
-        CullMode::None,
+        &[
+            ([-1.0, -1.0], Rgba::red()),
+            ([1.0, -1.0], Rgba::green()),
+            ([0.0, 1.0], Rgba::blue()),
+        ],
         &mut color,
         &mut Empty::default(),
     );

@@ -51,7 +51,7 @@ pub trait Blitter<V>: Sized {
 /// Rasterizers take an iterator of vertices and emit fragment positions. They do not, by themselves, perform shader
 /// execution, depth testing, etc.
 pub trait Rasterizer: Default {
-    type Config: Clone + Send + Sync;
+    type Config: Default + Send + Sync;
 
     /// Rasterize the given vertices into fragments.
     ///

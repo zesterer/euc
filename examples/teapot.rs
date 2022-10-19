@@ -1,6 +1,6 @@
 use vek::*;
 use derive_more::{Add, Mul};
-use euc::{Pipeline, Buffer2d, Target, PixelMode, DepthMode, TriangleList, CullMode, Empty, Linear, Texture, Sampler, AaMode, Unit, Clamped};
+use euc::{Pipeline, Buffer2d, Target, PixelMode, DepthMode, TriangleList, Empty, Linear, Texture, Sampler, AaMode, Unit, Clamped};
 use minifb::{Key, MouseButton, MouseMode, Window, WindowOptions};
 use std::marker::PhantomData;
 
@@ -158,7 +158,6 @@ fn main() {
         // Shadow pass
         TeapotShadow { mvp: light_vp * m, phantom: PhantomData }.render(
             model.vertices(),
-            CullMode::None,
             &mut Empty::default(),
             &mut shadow,
         );
@@ -166,7 +165,6 @@ fn main() {
         // Colour pass
         Teapot { m, v, p, light_pos, shadow: Clamped::new(Linear::new(&shadow)), light_vp: light_vp }.render(
             model.vertices(),
-            CullMode::Back,
             &mut color,
             &mut depth,
         );

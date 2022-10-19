@@ -1,4 +1,4 @@
-use euc::{Buffer2d, Pipeline, Target, TriangleList, CullMode, Sampler, Nearest};
+use euc::{Buffer2d, Pipeline, Target, TriangleList, Sampler, Nearest};
 use image_::RgbaImage;
 use vek::{Mat4, Vec2, Vec3, Vec4, Rgba};
 use minifb::{Key, Window, WindowOptions};
@@ -145,7 +145,6 @@ fn main() {
                 16, 17, 19, 17, 18, 19,
                 20, 23, 21, 21, 23, 22,
             ],
-            CullMode::Back,
             &mut color,
             &mut depth,
         );

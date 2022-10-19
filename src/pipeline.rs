@@ -192,6 +192,11 @@ pub trait Pipeline: Sized {
     #[inline(always)]
     fn aa_mode(&self) -> AaMode { AaMode::None }
 
+    /// Returns the rasterizer configuration (usually [`CullMode`], when using [`Triangles`]) of this pipeline.
+    fn rasterizer_config(&self) -> <<Self::Primitives as PrimitiveKind<Self::VertexData>>::Rasterizer as Rasterizer>::Config {
+        Default::default()
+    }
+
     /// Transforms a [`Pipeline::Vertex`] into homogeneous NDCs (Normalised Device Coordinates) for the vertex and a
     /// [`Pipeline::VertexData`] to be interpolated and passed to the fragment shader.
     ///
@@ -229,7 +234,6 @@ pub trait Pipeline: Sized {
     fn render<S, V, P, D>(
         &self,
         vertices: S,
-        rasterizer_config: <<Self::Primitives as PrimitiveKind<Self::VertexData>>::Rasterizer as Rasterizer>::Config,
         pixel: &mut P,
         depth: &mut D,
     )
@@ -272,9 +276,9 @@ pub trait Pipeline: Sized {
         });
 
         #[cfg(not(feature = "par"))]
-        let r = render_seq(self, fetch_vertex, rasterizer_config, target_size, pixel, depth);
+        let r = render_seq(self, fetch_vertex, target_size, pixel, depth);
         #[cfg(feature = "par")]
-        let r = render_par(self, fetch_vertex, rasterizer_config, target_size, pixel, depth);
+        let r = render_par(self, fetch_vertex, target_size, pixel, depth);
         r
     }
 }
@@ -283,7 +287,6 @@ pub trait Pipeline: Sized {
 fn render_par<Pipe, S, P, D>(
     pipeline: &Pipe,
     fetch_vertex: S,
-    rasterizer_config: <<Pipe::Primitives as PrimitiveKind<Pipe::VertexData>>::Rasterizer as Rasterizer>::Config,
     tgt_size: [usize; 2],
     pixel: &mut P,
     depth: &mut D,
@@ -301,11 +304,12 @@ where
     let vertices = fetch_vertex.collect::<Vec<_>>();
     let threads = num_cpus::get();
     let row = AtomicUsize::new(0);
-    let group_rows = 32;
+
+    const FRAGMENTS_PER_GROUP: usize = 40960; // Magic number, maybe make this configurable?
+    let group_rows = FRAGMENTS_PER_GROUP / tgt_size[0].max(1);
     let needed_threads = (tgt_size[1] / group_rows).min(threads);
 
     let vertices = &vertices;
-    let rasterizer_config = &rasterizer_config;
     let pixel = &*pixel;
     let depth = &*depth;
 
@@ -325,7 +329,7 @@ where
                     let tgt_max = [tgt_size[0], row_end];
                     // Safety: we have exclusive access to our specific regions of `pixel` and `depth`
                     // TODO: Actually, unchecked_exclusive is UB, fix this
-                    unsafe { render_inner(pipeline, vertices.iter().cloned(), rasterizer_config.clone(), (tgt_min, tgt_max), tgt_size, pixel, depth) }
+                    unsafe { render_inner(pipeline, vertices.iter().cloned(), (tgt_min, tgt_max), tgt_size, pixel, depth) }
                 }
             });
         }
@@ -335,7 +339,6 @@ where
 fn render_seq<Pipe, S, P, D>(
     pipeline: &Pipe,
     fetch_vertex: S,
-    rasterizer_config: <<Pipe::Primitives as PrimitiveKind<Pipe::VertexData>>::Rasterizer as Rasterizer>::Config,
     tgt_size: [usize; 2],
     pixel: &mut P,
     depth: &mut D,
@@ -347,13 +350,13 @@ where
     D: Target<Texel = f32> + Send + Sync,
 {
     // Safety: we have exclusive access to `pixel` and `depth`
-    unsafe { render_inner(pipeline, fetch_vertex, rasterizer_config, ([0; 2], tgt_size), tgt_size, pixel, depth) }
+    // TODO: Actually, unchecked_exclusive is UB, fix this
+    unsafe { render_inner(pipeline, fetch_vertex, ([0; 2], tgt_size), tgt_size, pixel, depth) }
 }
 
 unsafe fn render_inner<Pipe, S, P, D>(
     pipeline: &Pipe,
     fetch_vertex: S,
-    rasterizer_config: <<Pipe::Primitives as PrimitiveKind<Pipe::VertexData>>::Rasterizer as Rasterizer>::Config,
     (tgt_min, tgt_max): ([usize; 2], [usize; 2]),
     tgt_size: [usize; 2],
     pixel: &P,
@@ -499,7 +502,7 @@ where
         fetch_vertex,
         principal_x,
         pipeline.coordinate_mode(),
-        rasterizer_config,
+        pipeline.rasterizer_config(),
         BlitterImpl {
             write_pixels,
             depth_mode,
