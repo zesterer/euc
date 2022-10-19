@@ -18,6 +18,7 @@ impl<'a> Pipeline for TeapotShadow<'a> {
 
     fn pixel_mode(&self) -> PixelMode { PixelMode::PASS }
     fn depth_mode(&self) -> DepthMode { DepthMode::LESS_WRITE }
+    fn rasterizer_config(&self) -> euc::CullMode { euc::CullMode::None }
 
     #[inline(always)]
     fn vertex_shader(&self, vertex: &Self::Vertex) -> ([f32; 4], Self::VertexData) {
@@ -163,7 +164,7 @@ fn main() {
         );
 
         // Colour pass
-        Teapot { m, v, p, light_pos, shadow: Clamped::new(Linear::new(&shadow)), light_vp: light_vp }.render(
+        Teapot { m, v, p, light_pos, shadow: Clamped::new(Linear::new(&shadow)), light_vp }.render(
             model.vertices(),
             &mut color,
             &mut depth,

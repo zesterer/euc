@@ -14,7 +14,8 @@ exclude = [
 ]
 
 [dependencies]
-vek = { version = "0.15", default-features = false, features = [] }
+#vek = { version = "0.15", default-features = false, features = [] }
+ultraviolet = "0.9"
 image_ = { package = "image", version = "0.23", optional = true }
 num_cpus = { version = "1.13", optional = true }
 fxhash = { version = "0.2", optional = true }

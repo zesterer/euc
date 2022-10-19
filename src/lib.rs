@@ -40,7 +40,7 @@
 
 #![no_std]
 
-#![feature(array_map, type_alias_impl_trait)]
+#![feature(type_alias_impl_trait)]
 
 extern crate alloc;
 
