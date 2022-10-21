@@ -1,4 +1,5 @@
 use core::marker::PhantomData;
+use super::sampler::{Linear, Nearest};
 
 /// A trait implemented by types that may be treated as textures.
 pub trait Texture<const N: usize> {
@@ -43,6 +44,19 @@ pub trait Texture<const N: usize> {
     /// use.
     unsafe fn read_unchecked(&self, index: [Self::Index; N]) -> Self::Texel {
         self.read(index)
+    }
+
+    /// Create a linearly (or bilinear/trilinear, if the texture is 2D/3D) interpolated (i.e: filtered) sampler from
+    /// this texture.
+    ///
+    /// See [`Linear`].
+    fn linear(self) -> Linear<Self> where Self: Sized { Linear(self, PhantomData) }
+
+    /// Create a nearest-neighbour (i.e: unfiltered) sampler from this texture.
+    ///
+    /// See [`Nearest`].
+    fn nearest(self) -> Nearest<Self> where Self: Sized {
+        Nearest { texture: self, phantom: PhantomData }
     }
 }
 

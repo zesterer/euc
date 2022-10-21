@@ -4,12 +4,11 @@ use crate::{
     primitives::PrimitiveKind,
     math::WeightedSum,
     buffer::Buffer2d,
-    sampler::Linear,
 };
 use alloc::{vec::Vec, collections::VecDeque};
 use core::{
     cmp::Ordering,
-    ops::{Add, Mul, Range},
+    ops::Range,
     borrow::Borrow,
     marker::PhantomData,
 };

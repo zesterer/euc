@@ -2,8 +2,7 @@ pub mod triangles;
 
 pub use self::triangles::Triangles;
 
-use crate::{CoordinateMode, Pipeline, math::WeightedSum};
-use core::ops::{Mul, Add};
+use crate::{CoordinateMode, math::WeightedSum};
 
 /// The face culling strategy used during rendering.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]

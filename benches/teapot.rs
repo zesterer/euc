@@ -147,7 +147,7 @@ fn teapot_benchmark(b: &mut Bencher, &[width, height]: &[usize; 2]) {
         );
 
         // Colour pass
-        Teapot { m, v, p, light_pos, shadow: Clamped::new(Linear::new(&shadow)), light_vp: light_vp }.render(
+        Teapot { m, v, p, light_pos, shadow: (&shadow).linear().clamped(), light_vp: light_vp }.render(
             model.vertices(),
             &mut color,
             &mut depth,
@@ -169,7 +169,7 @@ fn criterion_benchmark(c: &mut Criterion) {
 criterion_group! {
     name = benches;
     config = Criterion::default()
-        .sample_size(10)
+        .sample_size(32)
         .warm_up_time(Duration::from_millis(1000));
     targets = criterion_benchmark
 }

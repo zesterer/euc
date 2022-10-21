@@ -163,7 +163,7 @@ fn main() {
         );
 
         // Colour pass
-        Teapot { m, v, p, light_pos, shadow: Clamped::new(Linear::new(&shadow)), light_vp: light_vp }.render(
+        Teapot { m, v, p, light_pos, shadow: (&shadow).linear().clamped(), light_vp: light_vp }.render(
             model.vertices(),
             &mut color,
             &mut depth,

@@ -5,13 +5,9 @@ use core::{
 };
 
 /// A sampler that uses nearest-neighbor sampling.
-pub struct Nearest<T, I = f32>(T, PhantomData<I>);
-
-impl<T, I> Nearest<T, I> {
-    /// Create a new
-    pub fn new(texture: T) -> Self {
-        Self(texture, PhantomData)
-    }
+pub struct Nearest<T, I = f32> {
+    pub(crate) texture: T,
+    pub(crate) phantom: PhantomData<I>,
 }
 
 impl<'a, T, I, const N: usize> Sampler<N> for Nearest<T, I>
@@ -26,7 +22,7 @@ where
     type Texture = T;
 
     #[inline(always)]
-    fn raw_texture(&self) -> &Self::Texture { &self.0 }
+    fn raw_texture(&self) -> &Self::Texture { &self.texture }
 
     #[inline(always)]
     fn sample(&self, index: [Self::Index; N]) -> Self::Sample {

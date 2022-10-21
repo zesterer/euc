@@ -8,14 +8,7 @@ use core::{
 use micromath_::F32Ext;
 
 /// A sampler that uses nearest-neighbor sampling.
-pub struct Linear<T, I = f32>(T, PhantomData<I>);
-
-impl<T, I> Linear<T, I> {
-    /// Create a new
-    pub fn new(texture: T) -> Self {
-        Self(texture, PhantomData)
-    }
-}
+pub struct Linear<T, I = f32>(pub(crate) T, pub(crate) PhantomData<I>);
 
 impl<'a, T> Sampler<2> for Linear<T, f32>
 where
