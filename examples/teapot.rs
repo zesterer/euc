@@ -1,6 +1,6 @@
 use vek::*;
 use derive_more::{Add, Mul};
-use euc::{Pipeline, Buffer2d, Target, PixelMode, DepthMode, TriangleList, Empty, Linear, Texture, Sampler, AaMode, Unit, Clamped};
+use euc::{Pipeline, Buffer2d, Target, PixelMode, DepthMode, TriangleList, Empty, Linear, Texture, Sampler, AaMode, Unit, Clamped, CullMode};
 use minifb::{Key, MouseButton, MouseMode, Window, WindowOptions};
 use std::marker::PhantomData;
 
@@ -18,6 +18,7 @@ impl<'a> Pipeline for TeapotShadow<'a> {
 
     fn pixel_mode(&self) -> PixelMode { PixelMode::PASS }
     fn depth_mode(&self) -> DepthMode { DepthMode::LESS_WRITE }
+    fn rasterizer_config(&self) -> CullMode { CullMode::None }
 
     #[inline(always)]
     fn vertex_shader(&self, vertex: &Self::Vertex) -> ([f32; 4], Self::VertexData) {
@@ -112,11 +113,12 @@ fn main() {
 
     let mut win = Window::new("Teapot", w, h, WindowOptions::default()).unwrap();
 
-    let mut ori = Vec2::new(0.0, 0.0);
-    let mut dist = 6.0;
+    let mut ori = Vec2::new(-0.55, -0.25);
+    let mut dist = 4.5;
     let mut old_mouse_pos = (0.0, 0.0);
 
     let mut i = 0;
+    let init = std::time::Instant::now();
     while win.is_open() && !win.is_key_down(Key::Escape) {
         let start_time = std::time::Instant::now();
 
@@ -128,8 +130,7 @@ fn main() {
         // Update camera as the mouse moves
         let mouse_pos = win.get_mouse_pos(MouseMode::Pass).unwrap_or_default();
         if win.get_mouse_down(MouseButton::Left) {
-            ori.x -= (mouse_pos.1 - old_mouse_pos.1) * 0.003;
-            ori.y += (mouse_pos.0 - old_mouse_pos.0) * 0.003;
+            ori -= Vec2::new(mouse_pos.1 - old_mouse_pos.1, mouse_pos.0 - old_mouse_pos.0) * 0.003;
         }
         if win.get_mouse_down(MouseButton::Right) {
             dist = (dist + (mouse_pos.1 - old_mouse_pos.1) as f32 * 0.01).max(1.0).min(20.0);
@@ -138,7 +139,8 @@ fn main() {
 
         // Position of objects in the scene
         let teapot_pos = Vec3::new(0.0, 0.0, 0.0);
-        let light_pos = Vec3::<f32>::new(-8.0, 5.0, -5.0);
+        let angle = init.elapsed().as_secs_f32();
+        let light_pos = Vec3::new(angle.sin() * 8.0, 10.0, angle.cos() * 8.0);
 
         // Set up the light matrix
         let light_p = Mat4::perspective_fov_lh_zo(0.75, shadow.size()[0] as f32, shadow.size()[1] as f32, 0.1, 100.0);
@@ -148,12 +150,12 @@ fn main() {
         // Set up the camera matrix
         let p = Mat4::perspective_fov_lh_zo(1.3, w as f32, h as f32, 0.01, 100.0);
         let v = Mat4::<f32>::identity()
-            * Mat4::translation_3d(Vec3::new(0.0, 0.0, dist));
-        // Set up the teapot matrix
-        let m = Mat4::<f32>::translation_3d(-teapot_pos)
-            * Mat4::rotation_x(core::f32::consts::PI)
+            * Mat4::translation_3d(Vec3::new(0.0, 0.0, dist))
             * Mat4::rotation_x(ori.x)
             * Mat4::rotation_y(ori.y);
+        // Set up the teapot matrix
+        let m = Mat4::<f32>::translation_3d(-teapot_pos)
+            * Mat4::rotation_x(core::f32::consts::PI);
 
         // Shadow pass
         TeapotShadow { mvp: light_vp * m, phantom: PhantomData }.render(
