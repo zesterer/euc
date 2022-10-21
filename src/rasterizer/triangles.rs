@@ -15,7 +15,7 @@ impl Rasterizer for Triangles {
     unsafe fn rasterize<V, I, B>(
         &self,
         mut vertices: I,
-        principal_x: bool,
+        _principal_x: bool,
         coordinate_mode: CoordinateMode,
         cull_mode: CullMode,
         mut blitter: B,

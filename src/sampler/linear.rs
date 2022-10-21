@@ -25,7 +25,7 @@ where
     fn raw_texture(&self) -> &Self::Texture { &self.0 }
 
     #[inline(always)]
-    fn sample(&self, mut index: [Self::Index; 2]) -> Self::Sample {
+    fn sample(&self, index: [Self::Index; 2]) -> Self::Sample {
         assert!(index[0] <= 1.0, "{:?}", index);
         assert!(index[1] <= 1.0, "{:?}", index);
 

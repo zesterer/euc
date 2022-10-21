@@ -71,7 +71,7 @@ pub use crate::{
     primitives::TriangleList,
     texture::{Texture, Target, Empty},
     rasterizer::CullMode,
-    sampler::{Sampler, Nearest, Linear, Clamped},
+    sampler::{Sampler, Nearest, Linear, Clamped, Tiled, Mirrored},
     index::IndexedVertices,
     math::Unit,
 };

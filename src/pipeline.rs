@@ -10,7 +10,6 @@ use core::{
     cmp::Ordering,
     ops::Range,
     borrow::Borrow,
-    marker::PhantomData,
 };
 
 #[cfg(feature = "micromath")]
@@ -335,6 +334,7 @@ where
     });
 }
 
+#[cfg(not(feature = "par"))]
 fn render_seq<Pipe, S, P, D>(
     pipeline: &Pipe,
     fetch_vertex: S,

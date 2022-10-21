@@ -1,4 +1,4 @@
-use euc::{Buffer2d, Pipeline, Target, TriangleList, Sampler, Nearest};
+use euc::{Buffer2d, Pipeline, Target, TriangleList, Sampler, Nearest, Texture};
 use image_::RgbaImage;
 use vek::{Mat4, Vec2, Vec3, Vec4, Rgba};
 use minifb::{Key, Window, WindowOptions};
@@ -113,7 +113,7 @@ fn main() {
             return;
         }
     };
-    let sampler = Nearest::new(texture);
+    let sampler = texture.nearest();
 
     let mut win = Window::new("Texture Mapping", w, h, WindowOptions::default()).unwrap();
 

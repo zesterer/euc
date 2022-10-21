@@ -67,6 +67,16 @@ pub trait Sampler<const N: usize> {
     fn mirrored(self) -> Mirrored<Self> where Self: Sized { Mirrored(self) }
 }
 
+impl<'a, S: Sampler<N>, const N: usize> Sampler<N> for &'a S {
+    type Index = S::Index;
+    type Sample = S::Sample;
+    type Texture = S::Texture;
+
+    fn raw_texture(&self) -> &Self::Texture { (*self).raw_texture() }
+    fn sample(&self, index: [Self::Index; N]) -> Self::Sample { (*self).sample(index) }
+    unsafe fn sample_unchecked(&self, index: [Self::Index; N]) -> Self::Sample { (*self).sample_unchecked(index) }
+}
+
 /// A sampler that clamps the index's components to the 0.0 <= x <= 1.0 range.
 #[derive(Copy, Clone)]
 pub struct Clamped<S>(S);
