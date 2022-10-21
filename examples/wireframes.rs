@@ -29,7 +29,7 @@ impl<'a> Pipeline for Teapot<'a> {
     fn aa_mode(&self) -> AaMode { AaMode::Msaa { level: 1 } }
 
     #[inline(always)]
-    fn vertex_shader(&self, vertex: &Self::Vertex) -> ([f32; 4], Self::VertexData) {
+    fn vertex(&self, vertex: &Self::Vertex) -> ([f32; 4], Self::VertexData) {
         let wpos = self.m * Vec4::from_point(Vec3::from(vertex.position()));
         let wnorm = self.m * Vec4::from_direction(-Vec3::from(vertex.normal().unwrap()));
 
@@ -40,12 +40,12 @@ impl<'a> Pipeline for Teapot<'a> {
     }
 
     #[inline(always)]
-    fn fragment_shader(&self, VertexData { wpos, wnorm }: Self::VertexData) -> Self::Fragment {
+    fn fragment(&self, VertexData { wpos, wnorm }: Self::VertexData) -> Self::Fragment {
         Rgba::red()
     }
 
     #[inline(always)]
-    fn blend_shader(&self, _old: Self::Pixel, rgba: Self::Fragment) -> Self::Pixel {
+    fn blend(&self, _old: Self::Pixel, rgba: Self::Fragment) -> Self::Pixel {
         let rgba = rgba.map(|e| e.clamped(0.0, 1.0) * 255.0).as_();
         // The window's framebuffer uses BGRA format
         let bgra = Rgba::new(rgba.b, rgba.g, rgba.r, rgba.a);

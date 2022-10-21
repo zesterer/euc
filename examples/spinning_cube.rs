@@ -14,16 +14,16 @@ impl Pipeline for Cube {
     type Fragment = Rgba<f32>;
 
     #[inline(always)]
-    fn vertex_shader(&self, (pos, color): &Self::Vertex) -> ([f32; 4], Self::VertexData) {
+    fn vertex(&self, (pos, color): &Self::Vertex) -> ([f32; 4], Self::VertexData) {
         ((self.mvp * *pos).into_array(), *color)
     }
 
     #[inline(always)]
-    fn fragment_shader(&self, color: Self::VertexData) -> Self::Fragment {
+    fn fragment(&self, color: Self::VertexData) -> Self::Fragment {
         color
     }
 
-    fn blend_shader(&self, _: Self::Pixel, color: Self::Fragment) -> Self::Pixel {
+    fn blend(&self, _: Self::Pixel, color: Self::Fragment) -> Self::Pixel {
         u32::from_le_bytes((color * 255.0).as_().into_array())
     }
 }

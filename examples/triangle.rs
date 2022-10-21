@@ -11,13 +11,13 @@ impl Pipeline for Triangle {
     type Fragment = Rgba<f32>;
     type Pixel = u32;
 
-    fn vertex_shader(&self, (pos, col): &Self::Vertex) -> ([f32; 4], Self::VertexData) {
+    fn vertex(&self, (pos, col): &Self::Vertex) -> ([f32; 4], Self::VertexData) {
         ([pos[0], pos[1], 0.0, 1.0], *col)
     }
 
-    fn fragment_shader(&self, col: Self::VertexData) -> Self::Fragment { col }
+    fn fragment(&self, col: Self::VertexData) -> Self::Fragment { col }
 
-    fn blend_shader(&self, _: Self::Pixel, col: Self::Fragment) -> Self::Pixel {
+    fn blend(&self, _: Self::Pixel, col: Self::Fragment) -> Self::Pixel {
         u32::from_le_bytes(col.map(|e| (e * 255.0) as u8).into_array())
     }
 }

@@ -1,6 +1,6 @@
 use vek::*;
 use derive_more::{Add, Mul};
-use euc::{Pipeline, Buffer2d, Target, PixelMode, DepthMode, TriangleList, Empty, Linear, Texture, Sampler, AaMode, Unit, Clamped, CullMode};
+use euc::{Pipeline, Buffer2d, Target, PixelMode, DepthMode, TriangleList, Empty, Linear, Texture, Sampler, Unit, Clamped, CullMode};
 use minifb::{Key, MouseButton, MouseMode, Window, WindowOptions};
 use std::marker::PhantomData;
 
@@ -21,15 +21,15 @@ impl<'a> Pipeline for TeapotShadow<'a> {
     fn rasterizer_config(&self) -> CullMode { CullMode::None }
 
     #[inline(always)]
-    fn vertex_shader(&self, vertex: &Self::Vertex) -> ([f32; 4], Self::VertexData) {
+    fn vertex(&self, vertex: &Self::Vertex) -> ([f32; 4], Self::VertexData) {
         ((self.mvp * Vec4::from_point(Vec3::from(vertex.position()))).into_array(), 0.0)
     }
 
     #[inline(always)]
-    fn fragment_shader(&self, _: Self::VertexData) -> Self::Fragment { Unit }
+    fn fragment(&self, _: Self::VertexData) -> Self::Fragment { Unit }
 
     #[inline(always)]
-    fn blend_shader(&self, old: Self::Pixel, new: Self::Fragment) {}
+    fn blend(&self, old: Self::Pixel, new: Self::Fragment) {}
 }
 
 struct Teapot<'a> {
@@ -56,10 +56,9 @@ impl<'a> Pipeline for Teapot<'a> {
     type Pixel = u32;
 
     fn depth_mode(&self) -> DepthMode { DepthMode::LESS_WRITE }
-    fn aa_mode(&self) -> AaMode { AaMode::Msaa { level: 1 } }
 
     #[inline(always)]
-    fn vertex_shader(&self, vertex: &Self::Vertex) -> ([f32; 4], Self::VertexData) {
+    fn vertex(&self, vertex: &Self::Vertex) -> ([f32; 4], Self::VertexData) {
         let wpos = self.m * Vec4::from_point(Vec3::from(vertex.position()));
         let wnorm = self.m * Vec4::from_direction(-Vec3::from(vertex.normal().unwrap()));
 
@@ -72,7 +71,7 @@ impl<'a> Pipeline for Teapot<'a> {
     }
 
     #[inline(always)]
-    fn fragment_shader(&self, VertexData { wpos, wnorm, light_view_pos }: Self::VertexData) -> Self::Fragment {
+    fn fragment(&self, VertexData { wpos, wnorm, light_view_pos }: Self::VertexData) -> Self::Fragment {
         let wnorm = wnorm.normalized();
         let cam_pos = Vec3::zero();
         let cam_dir = (wpos - cam_pos).normalized();
@@ -94,7 +93,7 @@ impl<'a> Pipeline for Teapot<'a> {
     }
 
     #[inline(always)]
-    fn blend_shader(&self, _old: Self::Pixel, rgba: Self::Fragment) -> Self::Pixel {
+    fn blend(&self, _old: Self::Pixel, rgba: Self::Fragment) -> Self::Pixel {
         let rgba = rgba.map(|e| e.clamped(0.0, 1.0) * 255.0).as_();
         // The window's framebuffer uses BGRA format
         let bgra = Rgba::new(rgba.b, rgba.g, rgba.r, rgba.a);

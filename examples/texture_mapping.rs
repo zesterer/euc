@@ -18,7 +18,7 @@ impl<'a> Pipeline for Cube<'a> {
     type Pixel = u32;
 
     #[inline]
-    fn vertex_shader(&self, v_index: &Self::Vertex) -> ([f32; 4], Self::VertexData) {
+    fn vertex(&self, v_index: &Self::Vertex) -> ([f32; 4], Self::VertexData) {
         (
             (self.mvp * self.positions[*v_index]).into_array(),
             self.uvs[*v_index],
@@ -26,11 +26,11 @@ impl<'a> Pipeline for Cube<'a> {
     }
 
     #[inline]
-    fn fragment_shader(&self, v_uv: Self::VertexData) -> Self::Fragment {
+    fn fragment(&self, v_uv: Self::VertexData) -> Self::Fragment {
         Rgba::from(self.sampler.sample(v_uv.into_array()).0).map(|e: u8| e as f32)
     }
 
-    fn blend_shader(&self, _: Self::Pixel, color: Self::Fragment) -> Self::Pixel {
+    fn blend(&self, _: Self::Pixel, color: Self::Fragment) -> Self::Pixel {
         u32::from_le_bytes(color.map(|e| e as u8).into_array())
     }
 }

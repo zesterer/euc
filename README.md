@@ -10,30 +10,42 @@
 ## Example
 
 ```rust
+// A type that specifies a rendering pipeline.
+// You can add fields to this type, like uniforms in traditional GPU shader programs.
 struct Triangle;
 
 impl Pipeline for Triangle {
-    type Vertex = [f32; 2];
-    type VertexData = ();
-    type Pixel = [u8; 4];
+    type Vertex = [f32; 2]; // Each vertex has an x and y component
+    type VertexData = Unit; // No data is passed from the vertex shader to the fragment shader
+    type Primitives = TriangleList; // Our vertices come in the form of a list of triangles
+    type Fragment = [u8; 3]; // Each fragment is 3 bytes: red, green, and blue
+    type Pixel = [u8; 3]; // Color buffer pixels have the same format as fragments.
 
-    // Vertex shader
-    fn vert(&self, pos: &Self::Vertex) -> ([f32; 4], Self::VertexData) {
-        ([pos[0], pos[1], 0.0, 1.0], ())
+    // Vertex shader (determines the screen-space position of each vertex)
+    fn vertex(&self, pos: &Self::Vertex) -> ([f32; 4], Self::VertexData) {
+        ([pos[0], pos[1], 0.0, 1.0], Unit)
     }
 
-    // Fragment shader
-    fn frag(&self, _: Self::VertexData) -> Self::Pixel {
-        [255, 0, 0, 255] // Red
+    // Fragment shader (determines the colour of each triangle fragment)
+    fn fragment(&self, _: Self::VertexData) -> Self::Fragment {
+        [255, 0, 0] // Paint the triangle red
+    }
+
+    // Blend shader (determines how to blend new fragments into the existing colour buffer)
+    fn blend(&self, _: Self::Pixel, col: Self::Fragment) -> Self::Pixel {
+        col // Just replace the color buffer's previous pixel
     }
 }
 
-let mut color = Buffer2d::new([640, 480], [0; 4]);
+// Create a new color buffer to render to
+let mut color = Buffer2d::new([640, 480], [0; 3]);
 
 Triangle.render(
-    &[[-1.0, -1.0], [ 1.0, -1.0], [ 0.0, 1.0]],
-    CullMode::Back,
+    // Just render a single triangle to the buffer
+    &[[-1.0, -1.0], [1.0, -1.0], [0.0, 1.0]],
+    // Specify the color buffer to render to
     &mut color,
+    // We have no need for a depth buffer, so use `Empty` as a substitute
     &mut Empty::default(),
 );
 ```
