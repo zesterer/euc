@@ -41,7 +41,7 @@ impl Pipeline for Triangle {
 let mut color = Buffer2d::new([640, 480], [0; 3]);
 
 Triangle.render(
-    // Just render a single triangle to the buffer
+    // Specify the coordinates of the triangle's corners
     &[[-1.0, -1.0], [1.0, -1.0], [0.0, 1.0]],
     // Specify the color buffer to render to
     &mut color,

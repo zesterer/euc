@@ -21,15 +21,15 @@ impl<'a> Pipeline for TeapotShadow<'a> {
     fn depth_mode(&self) -> DepthMode { DepthMode::LESS_WRITE }
 
     #[inline(always)]
-    fn vertex_shader(&self, vertex: &Self::Vertex) -> ([f32; 4], Self::VertexData) {
+    fn vertex(&self, vertex: &Self::Vertex) -> ([f32; 4], Self::VertexData) {
         ((self.mvp * Vec4::from_point(Vec3::from(vertex.position()))).into_array(), 0.0)
     }
 
     #[inline(always)]
-    fn fragment_shader(&self, _: Self::VertexData) -> Self::Fragment { Unit }
+    fn fragment(&self, _: Self::VertexData) -> Self::Fragment { Unit }
 
     #[inline(always)]
-    fn blend_shader(&self, old: Self::Pixel, new: Self::Fragment) {}
+    fn blend(&self, old: Self::Pixel, new: Self::Fragment) {}
 }
 
 struct Teapot<'a> {

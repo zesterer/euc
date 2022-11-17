@@ -68,7 +68,7 @@ pub mod texture;
 pub use crate::{
     buffer::{Buffer, Buffer1d, Buffer2d, Buffer3d, Buffer4d},
     pipeline::{Pipeline, DepthMode, PixelMode, CoordinateMode, Handedness, YAxisDirection, AaMode},
-    primitives::TriangleList,
+    primitives::{TriangleList, LineList, LineTriangleList},
     texture::{Texture, Target, Empty},
     rasterizer::CullMode,
     sampler::{Sampler, Nearest, Linear, Clamped, Tiled, Mirrored},

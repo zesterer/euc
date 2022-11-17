@@ -63,16 +63,22 @@ pub trait Texture<const N: usize> {
 impl<'a, T: Texture<N>, const N: usize> Texture<N> for &'a T {
     type Index = T::Index;
     type Texel = T::Texel;
+    #[inline]
     fn size(&self) -> [Self::Index; N] { (**self).size() }
+    #[inline]
     fn read(&self, index: [Self::Index; N]) -> Self::Texel { (**self).read(index) }
+    #[inline]
     unsafe fn read_unchecked(&self, index: [Self::Index; N]) -> Self::Texel { (**self).read_unchecked(index) }
 }
 
 impl<'a, T: Texture<N>, const N: usize> Texture<N> for &'a mut T {
     type Index = T::Index;
     type Texel = T::Texel;
+    #[inline]
     fn size(&self) -> [Self::Index; N] { (**self).size() }
+    #[inline]
     fn read(&self, index: [Self::Index; N]) -> Self::Texel { (**self).read(index) }
+    #[inline]
     unsafe fn read_unchecked(&self, index: [Self::Index; N]) -> Self::Texel { (**self).read_unchecked(index) }
 }
 
@@ -126,6 +132,7 @@ pub trait Target: Texture<2, Index = usize> {
     ///
     /// If the index is invalid, undefined behaviour can be assumed to occur. Ensure that the index is valid before
     /// use.
+    #[inline]
     unsafe fn write_unchecked(&mut self, index: [usize; 2], texel: Self::Texel) {
         self.write_exclusive_unchecked(index, texel);
     }
@@ -136,6 +143,7 @@ pub trait Target: Texture<2, Index = usize> {
     ///
     /// The behaviour of this function is *unspecified* (but not *undefined*) when the index is out of bounds. The
     /// implementation is free to panic, write to an entirely different texel, or do nothing.
+    #[inline]
     fn write(&mut self, [x, y]: [usize; 2], texel: Self::Texel) {
         if x < self.size()[0] && y < self.size()[1] {
             unsafe { self.write_unchecked([x, y], texel); }
@@ -143,6 +151,7 @@ pub trait Target: Texture<2, Index = usize> {
     }
 
     /// Clears the entire target with the given texel.
+    #[inline]
     fn clear(&mut self, texel: Self::Texel) {
         for y in 0..self.size()[1] {
             for x in 0..self.size()[0] {
@@ -153,10 +162,15 @@ pub trait Target: Texture<2, Index = usize> {
 }
 
 impl<'a, T: Target> Target for &'a mut T {
+    #[inline]
     unsafe fn read_exclusive_unchecked(&self, index: [Self::Index; 2]) -> Self::Texel { T::read_exclusive_unchecked(self, index) }
+    #[inline]
     unsafe fn write_exclusive_unchecked(&self, index: [usize; 2], texel: Self::Texel) { T::write_exclusive_unchecked(self, index, texel) }
+    #[inline]
     unsafe fn write_unchecked(&mut self, index: [usize; 2], texel: Self::Texel) { T::write_unchecked(self, index, texel) }
+    #[inline]
     fn write(&mut self, index: [usize; 2], texel: Self::Texel) { T::write(self, index, texel); }
+    #[inline]
     fn clear(&mut self, texel: Self::Texel) { T::clear(self, texel); }
 }
 
@@ -172,12 +186,16 @@ impl<T> Default for Empty<T> {
 impl<T: Clone, const N: usize> Texture<N> for Empty<T> {
     type Index = usize;
     type Texel = T;
+    #[inline]
     fn size(&self) -> [Self::Index; N] { [0; N] }
+    #[inline]
     fn read(&self, _: [Self::Index; N]) -> Self::Texel { panic!("Cannot read from an empty texture"); }
 }
 
 impl<T: Clone + Default> Target for Empty<T> {
+    #[inline]
     unsafe fn read_exclusive_unchecked(&self, _: [Self::Index; 2]) -> Self::Texel { T::default() }
+    #[inline]
     unsafe fn write_exclusive_unchecked(&self, _: [usize; 2], _: Self::Texel) {}
 }
 
@@ -190,10 +208,12 @@ where
     type Index = usize;
     type Texel = P;
 
+    #[inline]
     fn size(&self) -> [Self::Index; 2] {
         [self.width() as usize, self.height() as usize]
     }
 
+    #[inline]
     fn read(&self, [x, y]: [Self::Index; 2]) -> Self::Texel {
         self.get_pixel(x as u32, y as u32).clone()
     }

@@ -1,6 +1,10 @@
+pub mod lines;
 pub mod triangles;
 
-pub use self::triangles::Triangles;
+pub use self::{
+    lines::Lines,
+    triangles::Triangles,
+};
 
 use crate::{CoordinateMode, math::WeightedSum};
 
@@ -22,6 +26,7 @@ impl Default for CullMode {
 }
 
 /// A trait for types that define an interface for blitting fragments to surfaces
+#[doc(hidden)]
 pub trait Blitter<V>: Sized {
     fn target_size(&self) -> [usize; 2];
     fn target_min(&self) -> [usize; 2];

@@ -175,22 +175,23 @@ pub trait Pipeline: Sized {
     type Pixel: Clone;
 
     /// Returns the [`PixelMode`] of this pipeline.
-    #[inline(always)]
+    #[inline]
     fn pixel_mode(&self) -> PixelMode { PixelMode::default() }
 
     /// Returns the [`DepthMode`] of this pipeline.
-    #[inline(always)]
+    #[inline]
     fn depth_mode(&self) -> DepthMode { DepthMode::NONE }
 
     /// Returns the [`CoordinateMode`] of this pipeline.
-    #[inline(always)]
+    #[inline]
     fn coordinate_mode(&self) -> CoordinateMode { CoordinateMode::default() }
 
     /// Returns the [`AaMode`] of this pipeline.
-    #[inline(always)]
+    #[inline]
     fn aa_mode(&self) -> AaMode { AaMode::None }
 
     /// Returns the rasterizer configuration (usually [`CullMode`], when using [`Triangles`]) of this pipeline.
+    #[inline]
     fn rasterizer_config(&self) -> <<Self::Primitives as PrimitiveKind<Self::VertexData>>::Rasterizer as Rasterizer>::Config {
         Default::default()
     }
@@ -204,7 +205,7 @@ pub trait Pipeline: Sized {
     /// Turn a primitive into many primitives.
     ///
     /// This stage sits between the vertex shader and the fragment shader.
-    #[inline(always)]
+    #[inline]
     fn geometry<O>(&self, primitive: <Self::Primitives as PrimitiveKind<Self::VertexData>>::Primitive, mut output: O)
     where
         O: FnMut(<Self::Primitives as PrimitiveKind<Self::VertexData>>::Primitive),
@@ -413,7 +414,7 @@ where
         P: Target<Texel = Pipe::Pixel> + Send + Sync,
         D: Target<Texel = f32> + Send + Sync,
     {
-        #[inline(always)]
+        #[inline]
         unsafe fn msaa_fragment<F: FnMut([usize; 2]) -> Pipe::VertexData>(&mut self, pos: [usize; 2], mut get_v_data: F) -> Pipe::Fragment {
             // Safety: MSAA buffer will always be large enough
             let texel = self.msaa_buf
@@ -439,12 +440,12 @@ where
         fn target_min(&self) -> [usize; 2] { self.tgt_min }
         fn target_max(&self) -> [usize; 2] { self.tgt_max }
 
-        #[inline(always)]
+        #[inline]
         fn begin_primitive(&mut self) {
             self.primitive_count = self.primitive_count.wrapping_add(1);
         }
 
-        #[inline(always)]
+        #[inline]
         unsafe fn test_fragment(&mut self, pos: [usize; 2], z: f32) -> bool {
             if let Some(test) = self.depth_mode.test {
                 let old_z = self.depth.read_exclusive_unchecked(pos);
@@ -454,7 +455,7 @@ where
             }
         }
 
-        #[inline(always)]
+        #[inline]
         unsafe fn emit_fragment<F: FnMut([f32; 2]) -> Pipe::VertexData>(&mut self, pos: [usize; 2], mut get_v_data: F, z: f32) {
             if self.depth_mode.write {
                 self.depth.write_exclusive_unchecked(pos, z);

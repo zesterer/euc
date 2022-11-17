@@ -12,6 +12,7 @@ pub struct Triangles;
 impl Rasterizer for Triangles {
     type Config = CullMode;
 
+    #[inline]
     unsafe fn rasterize<V, I, B>(
         &self,
         mut vertices: I,
