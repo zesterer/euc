@@ -1,4 +1,4 @@
-use crate::rasterizer::{Rasterizer, Triangles, Lines};
+use crate::rasterizer::{Lines, Rasterizer, Triangles};
 use core::marker::PhantomData;
 
 pub trait PrimitiveKind<V> {
@@ -28,7 +28,7 @@ impl<V> PrimitiveKind<V> for TriangleList {
     #[inline]
     fn collect_primitive<I>(mut iter: I) -> Option<Self::Primitive>
     where
-        I: Iterator<Item = ([f32; 4], V)>
+        I: Iterator<Item = ([f32; 4], V)>,
     {
         Some([iter.next()?, iter.next()?, iter.next()?])
     }
@@ -36,7 +36,7 @@ impl<V> PrimitiveKind<V> for TriangleList {
     #[inline]
     fn primitive_vertices<O>([a, b, c]: Self::Primitive, mut output: O)
     where
-        O: FnMut(([f32; 4], V))
+        O: FnMut(([f32; 4], V)),
     {
         output(a);
         output(b);
@@ -56,7 +56,7 @@ impl<V: Clone> PrimitiveKind<V> for LineTriangleList {
     #[inline]
     fn collect_primitive<I>(mut iter: I) -> Option<Self::Primitive>
     where
-        I: Iterator<Item = ([f32; 4], V)>
+        I: Iterator<Item = ([f32; 4], V)>,
     {
         Some([iter.next()?, iter.next()?, iter.next()?])
     }
@@ -64,7 +64,7 @@ impl<V: Clone> PrimitiveKind<V> for LineTriangleList {
     #[inline]
     fn primitive_vertices<O>([a, b, c]: Self::Primitive, mut output: O)
     where
-        O: FnMut(([f32; 4], V))
+        O: FnMut(([f32; 4], V)),
     {
         output(a.clone());
         output(b.clone());
@@ -89,7 +89,7 @@ impl<V> PrimitiveKind<V> for LineList {
     #[inline]
     fn collect_primitive<I>(mut iter: I) -> Option<Self::Primitive>
     where
-        I: Iterator<Item = ([f32; 4], V)>
+        I: Iterator<Item = ([f32; 4], V)>,
     {
         Some([iter.next()?, iter.next()?])
     }
@@ -97,7 +97,7 @@ impl<V> PrimitiveKind<V> for LineList {
     #[inline]
     fn primitive_vertices<O>([a, b]: Self::Primitive, mut output: O)
     where
-        O: FnMut(([f32; 4], V))
+        O: FnMut(([f32; 4], V)),
     {
         output(a);
         output(b);

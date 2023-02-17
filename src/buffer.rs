@@ -1,4 +1,4 @@
-use crate::texture::{Texture, Target};
+use crate::texture::{Target, Texture};
 use alloc::vec::Vec;
 use core::cell::UnsafeCell;
 
@@ -24,7 +24,10 @@ pub struct Buffer<T, const N: usize> {
 impl<T, const N: usize> Buffer<T, N> {
     /// Create a new buffer with the given size, filled with duplicates of the given element.
     #[inline]
-    pub fn fill(size: [usize; N], item: T) -> Self where T: Clone {
+    pub fn fill(size: [usize; N], item: T) -> Self
+    where
+        T: Clone,
+    {
         Self::fill_with(size, || item.clone())
     }
 
@@ -55,11 +58,15 @@ impl<T, const N: usize> Buffer<T, N> {
 
     /// View this buffer as a linear slice of elements.
     #[inline]
-    pub fn raw(&self) -> &[T] { &self.items }
+    pub fn raw(&self) -> &[T] {
+        &self.items
+    }
 
     /// View this buffer as a linear mutable slice of elements.
     #[inline]
-    pub fn raw_mut(&mut self) -> &mut [T] { &mut self.items }
+    pub fn raw_mut(&mut self) -> &mut [T] {
+        &mut self.items
+    }
 
     /// Get a mutable reference to the item at the given index.
     ///
@@ -71,7 +78,10 @@ impl<T, const N: usize> Buffer<T, N> {
         let idx = self.linear_index(index);
         match self.items.get_mut(idx) {
             Some(item) => item,
-            None => panic!("Attempted to read buffer of size {:?} at out-of-bounds location {:?}", self.size, index),
+            None => panic!(
+                "Attempted to read buffer of size {:?} at out-of-bounds location {:?}",
+                self.size, index
+            ),
         }
     }
 
@@ -93,13 +103,21 @@ impl<T: Clone, const N: usize> Texture<N> for Buffer<T, N> {
     type Texel = T;
 
     #[inline]
-    fn size(&self) -> [Self::Index; N] { self.size }
+    fn size(&self) -> [Self::Index; N] {
+        self.size
+    }
 
     #[inline]
     fn read(&self, index: [Self::Index; N]) -> Self::Texel {
         self.items
             .get(self.linear_index(index))
-            .unwrap_or_else(|| panic!("Attempted to read buffer of size {:?} at out-of-bounds location {:?}", self.size(), index))
+            .unwrap_or_else(|| {
+                panic!(
+                    "Attempted to read buffer of size {:?} at out-of-bounds location {:?}",
+                    self.size(),
+                    index
+                )
+            })
             .clone()
     }
 
@@ -115,7 +133,8 @@ impl<T: Clone> Target for Buffer<T, 2> {
         // This is safe to do (provided the caller has exclusive access to this buffer) because `Vec` internally uses
         // a `RawVec`, which represents its internal buffer using raw pointers. Ergo, no other references to the items
         // exist and so this does not break aliasing rules.
-        let item = self.items.get_unchecked(self.linear_index(index)) as *const _ as *const UnsafeCell<T>;
+        let item =
+            self.items.get_unchecked(self.linear_index(index)) as *const _ as *const UnsafeCell<T>;
         (&*((&*item).get())).clone()
     }
 
@@ -124,7 +143,8 @@ impl<T: Clone> Target for Buffer<T, 2> {
         // This is safe to do (provided the caller has exclusive access to this buffer) because `Vec` internally uses
         // a `RawVec`, which represents its internal buffer using raw pointers. Ergo, no other references to the items
         // exist and so this does not break aliasing rules.
-        let item = self.items.get_unchecked(self.linear_index(index)) as *const _ as *const UnsafeCell<T>;
+        let item =
+            self.items.get_unchecked(self.linear_index(index)) as *const _ as *const UnsafeCell<T>;
         *(&*item).get() = texel;
     }
 

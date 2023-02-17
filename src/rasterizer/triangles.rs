@@ -20,8 +20,7 @@ impl Rasterizer for Triangles {
         coordinate_mode: CoordinateMode,
         cull_mode: CullMode,
         mut blitter: B,
-    )
-    where
+    ) where
         V: Clone + WeightedSum,
         I: Iterator<Item = ([f32; 4], V)>,
         B: Blitter<V>,
@@ -50,14 +49,19 @@ impl Rasterizer for Triangles {
         ]);
 
         let verts_hom_out = core::iter::from_fn(move || {
-            Some(Vec3::new(vertices.next()?, vertices.next()?, vertices.next()?))
+            Some(Vec3::new(
+                vertices.next()?,
+                vertices.next()?,
+                vertices.next()?,
+            ))
         });
 
         verts_hom_out.for_each(|verts_hom_out: Vec3<([f32; 4], V)>| {
             blitter.begin_primitive();
 
             // Calculate vertex shader outputs and vertex homogeneous coordinates
-            let verts_hom = Vec3::new(verts_hom_out.x.0, verts_hom_out.y.0, verts_hom_out.z.0).map(Vec4::<f32>::from);
+            let verts_hom = Vec3::new(verts_hom_out.x.0, verts_hom_out.y.0, verts_hom_out.z.0)
+                .map(Vec4::<f32>::from);
             let verts_out = Vec3::new(verts_hom_out.x.1, verts_hom_out.y.1, verts_hom_out.z.1);
 
             let verts_hom = verts_hom.map(|v| v * Vec4::new(flip.x, flip.y, 1.0, 1.0));
@@ -66,7 +70,9 @@ impl Rasterizer for Triangles {
             let verts_euc = verts_hom.map(|v_hom| v_hom.xyz() / v_hom.w);
 
             // Calculate winding direction to determine culling behaviour
-            let winding = (verts_euc.y - verts_euc.x).cross(verts_euc.z - verts_euc.x).z;
+            let winding = (verts_euc.y - verts_euc.x)
+                .cross(verts_euc.z - verts_euc.x)
+                .z;
 
             // Culling and correcting for winding
             let (verts_hom, verts_euc, verts_out) = if cull_dir
@@ -93,11 +99,16 @@ impl Rasterizer for Triangles {
                     1.0
                 };
 
-                Mat3::from_row_arrays([cb.cross(c), c.cross(ca), n].map(|v| v.into_array())) * rec_det * to_ndc
+                Mat3::from_row_arrays([cb.cross(c), c.cross(ca), n].map(|v| v.into_array()))
+                    * rec_det
+                    * to_ndc
             };
 
             // Ensure we didn't accidentally end up with infinities or NaNs
-            assert!(coords_to_weights.into_row_array().iter().all(|e| e.is_finite()));
+            assert!(coords_to_weights
+                .into_row_array()
+                .iter()
+                .all(|e| e.is_finite()));
 
             // Convert vertex coordinates to screen space
             let verts_screen = verts_euc.map(|euc| size * (euc.xy() * Vec2::new(0.5, -0.5) + 0.5));
@@ -106,8 +117,12 @@ impl Rasterizer for Triangles {
             let screen_min = Vec2::<usize>::from(tgt_min).map(|e| e as f32);
             let screen_max = Vec2::<usize>::from(tgt_max).map(|e| e as f32);
             let tri_bounds_clamped = Aabr::<usize> {
-                min: (verts_screen.reduce(|a, b| Vec2::partial_min(a, b)) + 0.0).clamped(screen_min, screen_max).as_(),
-                max: (verts_screen.reduce(|a, b| Vec2::partial_max(a, b)) + 1.0).clamped(screen_min, screen_max).as_(),
+                min: (verts_screen.reduce(|a, b| Vec2::partial_min(a, b)) + 0.0)
+                    .clamped(screen_min, screen_max)
+                    .as_(),
+                max: (verts_screen.reduce(|a, b| Vec2::partial_max(a, b)) + 1.0)
+                    .clamped(screen_min, screen_max)
+                    .as_(),
             };
 
             // Calculate change in vertex weights for each pixel
@@ -161,7 +176,9 @@ impl Rasterizer for Triangles {
 
                 // Now we have screen-space bounds for the row. Clean it up and clamp it to the screen bounds
                 let row_range = Vec2::new(
-                    (row_bounds.x as usize).saturating_sub(1).max(tri_bounds_clamped.min.x),
+                    (row_bounds.x as usize)
+                        .saturating_sub(1)
+                        .max(tri_bounds_clamped.min.x),
                     (row_bounds.y.ceil() as usize).min(tri_bounds_clamped.max.x),
                 );
 
@@ -183,12 +200,19 @@ impl Rasterizer for Triangles {
 
                         if blitter.test_fragment([x, y], z) {
                             // Don't use `.contains(&z)`, it isn't inclusive
-                            if coordinate_mode.z_clip_range.clone().map_or(true, |clip_range| z >= clip_range.start && z <= clip_range.end) {
+                            if coordinate_mode
+                                .z_clip_range
+                                .clone()
+                                .map_or(true, |clip_range| {
+                                    z >= clip_range.start && z <= clip_range.end
+                                })
+                            {
                                 let get_v_data = |[x, y]: [f32; 2]| {
                                     let w_hom = w_hom_origin + w_hom_dy * y + w_hom_dx * x;
 
                                     // Calculate vertex weights to determine vs_out lerping and intersection
-                                    let w_unbalanced = Vec3::new(w_hom.x, w_hom.y, w_hom.z - w_hom.x - w_hom.y);
+                                    let w_unbalanced =
+                                        Vec3::new(w_hom.x, w_hom.y, w_hom.z - w_hom.x - w_hom.y);
                                     let w = w_unbalanced * w_hom.z.recip();
 
                                     V::weighted_sum(verts_out.as_slice(), w.as_slice())

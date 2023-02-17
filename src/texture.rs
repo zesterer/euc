@@ -1,5 +1,5 @@
-use core::marker::PhantomData;
 use super::sampler::{Linear, Nearest};
+use core::marker::PhantomData;
 
 /// A trait implemented by types that may be treated as textures.
 pub trait Texture<const N: usize> {
@@ -25,7 +25,9 @@ pub trait Texture<const N: usize> {
     /// always the case. This function allows the texture to signal to users what access patterns are most performant.
     ///
     /// The default implementation is a principal axis of x, which corresponds to the most common in-memory texture layouts.
-    fn principal_axis(&self) -> usize { 0 }
+    fn principal_axis(&self) -> usize {
+        0
+    }
 
     /// Read a texel at the given index.
     ///
@@ -50,13 +52,24 @@ pub trait Texture<const N: usize> {
     /// this texture.
     ///
     /// See [`Linear`].
-    fn linear(self) -> Linear<Self> where Self: Sized { Linear(self, PhantomData) }
+    fn linear(self) -> Linear<Self>
+    where
+        Self: Sized,
+    {
+        Linear(self, PhantomData)
+    }
 
     /// Create a nearest-neighbour (i.e: unfiltered) sampler from this texture.
     ///
     /// See [`Nearest`].
-    fn nearest(self) -> Nearest<Self> where Self: Sized {
-        Nearest { texture: self, phantom: PhantomData }
+    fn nearest(self) -> Nearest<Self>
+    where
+        Self: Sized,
+    {
+        Nearest {
+            texture: self,
+            phantom: PhantomData,
+        }
     }
 }
 
@@ -64,22 +77,34 @@ impl<'a, T: Texture<N>, const N: usize> Texture<N> for &'a T {
     type Index = T::Index;
     type Texel = T::Texel;
     #[inline]
-    fn size(&self) -> [Self::Index; N] { (**self).size() }
+    fn size(&self) -> [Self::Index; N] {
+        (**self).size()
+    }
     #[inline]
-    fn read(&self, index: [Self::Index; N]) -> Self::Texel { (**self).read(index) }
+    fn read(&self, index: [Self::Index; N]) -> Self::Texel {
+        (**self).read(index)
+    }
     #[inline]
-    unsafe fn read_unchecked(&self, index: [Self::Index; N]) -> Self::Texel { (**self).read_unchecked(index) }
+    unsafe fn read_unchecked(&self, index: [Self::Index; N]) -> Self::Texel {
+        (**self).read_unchecked(index)
+    }
 }
 
 impl<'a, T: Texture<N>, const N: usize> Texture<N> for &'a mut T {
     type Index = T::Index;
     type Texel = T::Texel;
     #[inline]
-    fn size(&self) -> [Self::Index; N] { (**self).size() }
+    fn size(&self) -> [Self::Index; N] {
+        (**self).size()
+    }
     #[inline]
-    fn read(&self, index: [Self::Index; N]) -> Self::Texel { (**self).read(index) }
+    fn read(&self, index: [Self::Index; N]) -> Self::Texel {
+        (**self).read(index)
+    }
     #[inline]
-    unsafe fn read_unchecked(&self, index: [Self::Index; N]) -> Self::Texel { (**self).read_unchecked(index) }
+    unsafe fn read_unchecked(&self, index: [Self::Index; N]) -> Self::Texel {
+        (**self).read_unchecked(index)
+    }
 }
 
 // impl<'a, T: Clone, F: Fn([usize; N]) -> T, const N: usize> Texture<N> for (F, [usize; N], PhantomData<T>) {
@@ -146,7 +171,9 @@ pub trait Target: Texture<2, Index = usize> {
     #[inline]
     fn write(&mut self, [x, y]: [usize; 2], texel: Self::Texel) {
         if x < self.size()[0] && y < self.size()[1] {
-            unsafe { self.write_unchecked([x, y], texel); }
+            unsafe {
+                self.write_unchecked([x, y], texel);
+            }
         }
     }
 
@@ -155,7 +182,9 @@ pub trait Target: Texture<2, Index = usize> {
     fn clear(&mut self, texel: Self::Texel) {
         for y in 0..self.size()[1] {
             for x in 0..self.size()[0] {
-                unsafe { self.write_unchecked([x, y], texel.clone()); }
+                unsafe {
+                    self.write_unchecked([x, y], texel.clone());
+                }
             }
         }
     }
@@ -163,15 +192,25 @@ pub trait Target: Texture<2, Index = usize> {
 
 impl<'a, T: Target> Target for &'a mut T {
     #[inline]
-    unsafe fn read_exclusive_unchecked(&self, index: [Self::Index; 2]) -> Self::Texel { T::read_exclusive_unchecked(self, index) }
+    unsafe fn read_exclusive_unchecked(&self, index: [Self::Index; 2]) -> Self::Texel {
+        T::read_exclusive_unchecked(self, index)
+    }
     #[inline]
-    unsafe fn write_exclusive_unchecked(&self, index: [usize; 2], texel: Self::Texel) { T::write_exclusive_unchecked(self, index, texel) }
+    unsafe fn write_exclusive_unchecked(&self, index: [usize; 2], texel: Self::Texel) {
+        T::write_exclusive_unchecked(self, index, texel)
+    }
     #[inline]
-    unsafe fn write_unchecked(&mut self, index: [usize; 2], texel: Self::Texel) { T::write_unchecked(self, index, texel) }
+    unsafe fn write_unchecked(&mut self, index: [usize; 2], texel: Self::Texel) {
+        T::write_unchecked(self, index, texel)
+    }
     #[inline]
-    fn write(&mut self, index: [usize; 2], texel: Self::Texel) { T::write(self, index, texel); }
+    fn write(&mut self, index: [usize; 2], texel: Self::Texel) {
+        T::write(self, index, texel);
+    }
     #[inline]
-    fn clear(&mut self, texel: Self::Texel) { T::clear(self, texel); }
+    fn clear(&mut self, texel: Self::Texel) {
+        T::clear(self, texel);
+    }
 }
 
 /// An always-empty texture. Useful as a placeholder for an unused target.
@@ -187,14 +226,20 @@ impl<T: Clone, const N: usize> Texture<N> for Empty<T> {
     type Index = usize;
     type Texel = T;
     #[inline]
-    fn size(&self) -> [Self::Index; N] { [0; N] }
+    fn size(&self) -> [Self::Index; N] {
+        [0; N]
+    }
     #[inline]
-    fn read(&self, _: [Self::Index; N]) -> Self::Texel { panic!("Cannot read from an empty texture"); }
+    fn read(&self, _: [Self::Index; N]) -> Self::Texel {
+        panic!("Cannot read from an empty texture");
+    }
 }
 
 impl<T: Clone + Default> Target for Empty<T> {
     #[inline]
-    unsafe fn read_exclusive_unchecked(&self, _: [Self::Index; 2]) -> Self::Texel { T::default() }
+    unsafe fn read_exclusive_unchecked(&self, _: [Self::Index; 2]) -> Self::Texel {
+        T::default()
+    }
     #[inline]
     unsafe fn write_exclusive_unchecked(&self, _: [usize; 2], _: Self::Texel) {}
 }

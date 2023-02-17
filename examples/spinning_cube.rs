@@ -1,6 +1,6 @@
-use vek::*;
-use euc::{Pipeline, Buffer2d, Target, TriangleList, IndexedVertices};
+use euc::{Buffer2d, IndexedVertices, Pipeline, Target, TriangleList};
 use minifb::{Key, Window, WindowOptions};
+use vek::*;
 
 struct Cube {
     mvp: Mat4<f32>,
@@ -35,13 +35,13 @@ const B: Rgba<f32> = Rgba::new(0.0, 0.0, 1.0, 1.0);
 
 const VERTICES: &[(Vec4<f32>, Rgba<f32>)] = &[
     (Vec4::new(-1.0, -1.0, -1.0, 1.0), R),
-    (Vec4::new(-1.0, -1.0,  1.0, 1.0), Y),
-    (Vec4::new(-1.0,  1.0, -1.0, 1.0), G),
-    (Vec4::new(-1.0,  1.0,  1.0, 1.0), B),
-    (Vec4::new( 1.0, -1.0, -1.0, 1.0), B),
-    (Vec4::new( 1.0, -1.0,  1.0, 1.0), G),
-    (Vec4::new( 1.0,  1.0, -1.0, 1.0), Y),
-    (Vec4::new( 1.0,  1.0,  1.0, 1.0), R),
+    (Vec4::new(-1.0, -1.0, 1.0, 1.0), Y),
+    (Vec4::new(-1.0, 1.0, -1.0, 1.0), G),
+    (Vec4::new(-1.0, 1.0, 1.0, 1.0), B),
+    (Vec4::new(1.0, -1.0, -1.0, 1.0), B),
+    (Vec4::new(1.0, -1.0, 1.0, 1.0), G),
+    (Vec4::new(1.0, 1.0, -1.0, 1.0), Y),
+    (Vec4::new(1.0, 1.0, 1.0, 1.0), R),
 ];
 
 const INDICES: &[usize] = &[

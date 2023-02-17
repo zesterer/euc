@@ -1,16 +1,9 @@
 use crate::{
+    buffer::Buffer2d, math::WeightedSum, primitives::PrimitiveKind, rasterizer::Rasterizer,
     texture::Target,
-    rasterizer::Rasterizer,
-    primitives::PrimitiveKind,
-    math::WeightedSum,
-    buffer::Buffer2d,
 };
-use alloc::{vec::Vec, collections::VecDeque};
-use core::{
-    cmp::Ordering,
-    ops::Range,
-    borrow::Borrow,
-};
+use alloc::{collections::VecDeque, vec::Vec};
+use core::{borrow::Borrow, cmp::Ordering, ops::Range};
 
 #[cfg(feature = "micromath")]
 use micromath_::F32Ext;
@@ -66,13 +59,9 @@ pub struct PixelMode {
 }
 
 impl PixelMode {
-    pub const WRITE: Self = Self {
-        write: true,
-    };
+    pub const WRITE: Self = Self { write: true };
 
-    pub const PASS: Self = Self {
-        write: false,
-    };
+    pub const PASS: Self = Self { write: false };
 }
 
 impl Default for PixelMode {
@@ -176,23 +165,34 @@ pub trait Pipeline: Sized {
 
     /// Returns the [`PixelMode`] of this pipeline.
     #[inline]
-    fn pixel_mode(&self) -> PixelMode { PixelMode::default() }
+    fn pixel_mode(&self) -> PixelMode {
+        PixelMode::default()
+    }
 
     /// Returns the [`DepthMode`] of this pipeline.
     #[inline]
-    fn depth_mode(&self) -> DepthMode { DepthMode::NONE }
+    fn depth_mode(&self) -> DepthMode {
+        DepthMode::NONE
+    }
 
     /// Returns the [`CoordinateMode`] of this pipeline.
     #[inline]
-    fn coordinate_mode(&self) -> CoordinateMode { CoordinateMode::default() }
+    fn coordinate_mode(&self) -> CoordinateMode {
+        CoordinateMode::default()
+    }
 
     /// Returns the [`AaMode`] of this pipeline.
     #[inline]
-    fn aa_mode(&self) -> AaMode { AaMode::None }
+    fn aa_mode(&self) -> AaMode {
+        AaMode::None
+    }
 
     /// Returns the rasterizer configuration (usually [`CullMode`], when using [`Triangles`]) of this pipeline.
     #[inline]
-    fn rasterizer_config(&self) -> <<Self::Primitives as PrimitiveKind<Self::VertexData>>::Rasterizer as Rasterizer>::Config {
+    fn rasterizer_config(
+        &self,
+    ) -> <<Self::Primitives as PrimitiveKind<Self::VertexData>>::Rasterizer as Rasterizer>::Config
+    {
         Default::default()
     }
 
@@ -206,8 +206,11 @@ pub trait Pipeline: Sized {
     ///
     /// This stage sits between the vertex shader and the fragment shader.
     #[inline]
-    fn geometry<O>(&self, primitive: <Self::Primitives as PrimitiveKind<Self::VertexData>>::Primitive, mut output: O)
-    where
+    fn geometry<O>(
+        &self,
+        primitive: <Self::Primitives as PrimitiveKind<Self::VertexData>>::Primitive,
+        mut output: O,
+    ) where
         O: FnMut(<Self::Primitives as PrimitiveKind<Self::VertexData>>::Primitive),
     {
         output(primitive);
@@ -230,12 +233,7 @@ pub trait Pipeline: Sized {
     /// Render a stream of vertices to given provided pixel target and depth target using the rasterizer.
     ///
     /// **Do not implement this method**
-    fn render<S, V, P, D>(
-        &self,
-        vertices: S,
-        pixel: &mut P,
-        depth: &mut D,
-    )
+    fn render<S, V, P, D>(&self, vertices: S, pixel: &mut P, depth: &mut D)
     where
         Self: Send + Sync,
         S: IntoIterator<Item = V>,
@@ -249,24 +247,31 @@ pub trait Pipeline: Sized {
             (false, true) => depth.size(),
             (true, true) => {
                 // Ensure that the pixel target and depth target are compatible
-                assert_eq!(pixel.size(), depth.size(), "Pixel target size is compatible with depth target size");
+                assert_eq!(
+                    pixel.size(),
+                    depth.size(),
+                    "Pixel target size is compatible with depth target size"
+                );
                 // Prefer
                 pixel.size()
-            },
+            }
         };
 
         // Produce an iterator over vertices (using the vertex shader and geometry shader to produce them)
-        let mut vert_outs = vertices.into_iter().map(|v| self.vertex(v.borrow())).peekable();
+        let mut vert_outs = vertices
+            .into_iter()
+            .map(|v| self.vertex(v.borrow()))
+            .peekable();
         let mut vert_out_queue = VecDeque::new();
-        let fetch_vertex = core::iter::from_fn(move || {
-            loop {
-                match vert_out_queue.pop_front() {
-                    Some(v) => break Some(v),
-                    None if vert_outs.peek().is_none() => break None,
-                    None => {
-                        let prim = Self::Primitives::collect_primitive(&mut vert_outs)?;
-                        self.geometry(prim, |prim| Self::Primitives::primitive_vertices(prim, |v| vert_out_queue.push_back(v)));
-                    },
+        let fetch_vertex = core::iter::from_fn(move || loop {
+            match vert_out_queue.pop_front() {
+                Some(v) => break Some(v),
+                None if vert_outs.peek().is_none() => break None,
+                None => {
+                    let prim = Self::Primitives::collect_primitive(&mut vert_outs)?;
+                    self.geometry(prim, |prim| {
+                        Self::Primitives::primitive_vertices(prim, |v| vert_out_queue.push_back(v))
+                    });
                 }
             }
         });
@@ -292,15 +297,14 @@ fn render_par<Pipe, S, P, D>(
     pixel: &mut P,
     depth: &mut D,
     msaa_level: usize,
-)
-where
+) where
     Pipe: Pipeline + Send + Sync,
     S: Iterator<Item = ([f32; 4], Pipe::VertexData)>,
     P: Target<Texel = Pipe::Pixel> + Send + Sync,
     D: Target<Texel = f32> + Send + Sync,
 {
-    use std::thread;
     use core::sync::atomic::{AtomicUsize, Ordering};
+    use std::thread;
 
     // TODO: Don't pull all vertices at once
     let vertices = fetch_vertex.collect::<Vec<_>>();
@@ -331,7 +335,17 @@ where
                     let tgt_max = [tgt_size[0], row_end];
                     // Safety: we have exclusive access to our specific regions of `pixel` and `depth`
                     // TODO: Actually, unchecked_exclusive is UB, fix this
-                    unsafe { render_inner(pipeline, vertices.iter().cloned(), (tgt_min, tgt_max), tgt_size, pixel, depth, msaa_level) }
+                    unsafe {
+                        render_inner(
+                            pipeline,
+                            vertices.iter().cloned(),
+                            (tgt_min, tgt_max),
+                            tgt_size,
+                            pixel,
+                            depth,
+                            msaa_level,
+                        )
+                    }
                 }
             });
         }
@@ -346,8 +360,7 @@ fn render_seq<Pipe, S, P, D>(
     pixel: &mut P,
     depth: &mut D,
     msaa_level: usize,
-)
-where
+) where
     Pipe: Pipeline + Send + Sync,
     S: Iterator<Item = ([f32; 4], Pipe::VertexData)>,
     P: Target<Texel = Pipe::Pixel> + Send + Sync,
@@ -355,7 +368,17 @@ where
 {
     // Safety: we have exclusive access to `pixel` and `depth`
     // TODO: Actually, unchecked_exclusive is UB, fix this
-    unsafe { render_inner(pipeline, fetch_vertex, ([0; 2], tgt_size), tgt_size, pixel, depth, msaa_level) }
+    unsafe {
+        render_inner(
+            pipeline,
+            fetch_vertex,
+            ([0; 2], tgt_size),
+            tgt_size,
+            pixel,
+            depth,
+            msaa_level,
+        )
+    }
 }
 
 unsafe fn render_inner<Pipe, S, P, D>(
@@ -366,8 +389,7 @@ unsafe fn render_inner<Pipe, S, P, D>(
     pixel: &P,
     depth: &D,
     msaa_level: usize,
-)
-where
+) where
     Pipe: Pipeline + Send + Sync,
     S: Iterator<Item = ([f32; 4], Pipe::VertexData)>,
     P: Target<Texel = Pipe::Pixel> + Send + Sync,
@@ -378,12 +400,36 @@ where
     for i in 0..2 {
         // Safety check
         if write_pixels {
-            assert!(tgt_min[i] <= pixel.size()[i], "{}, {}, {}", i, tgt_min[i], pixel.size()[i]);
-            assert!(tgt_max[i] <= pixel.size()[i], "{}, {}, {}", i, tgt_min[i], pixel.size()[i]);
+            assert!(
+                tgt_min[i] <= pixel.size()[i],
+                "{}, {}, {}",
+                i,
+                tgt_min[i],
+                pixel.size()[i]
+            );
+            assert!(
+                tgt_max[i] <= pixel.size()[i],
+                "{}, {}, {}",
+                i,
+                tgt_min[i],
+                pixel.size()[i]
+            );
         }
         if depth_mode.uses_depth() {
-            assert!(tgt_min[i] <= depth.size()[i], "{}, {}, {}", i, tgt_min[i], depth.size()[i]);
-            assert!(tgt_max[i] <= depth.size()[i], "{}, {}, {}", i, tgt_min[i], depth.size()[i]);
+            assert!(
+                tgt_min[i] <= depth.size()[i],
+                "{}, {}, {}",
+                i,
+                tgt_min[i],
+                depth.size()[i]
+            );
+            assert!(
+                tgt_max[i] <= depth.size()[i],
+                "{}, {}, {}",
+                i,
+                tgt_min[i],
+                depth.size()[i]
+            );
         }
     }
 
@@ -415,9 +461,14 @@ where
         D: Target<Texel = f32> + Send + Sync,
     {
         #[inline]
-        unsafe fn msaa_fragment<F: FnMut([usize; 2]) -> Pipe::VertexData>(&mut self, pos: [usize; 2], mut get_v_data: F) -> Pipe::Fragment {
+        unsafe fn msaa_fragment<F: FnMut([usize; 2]) -> Pipe::VertexData>(
+            &mut self,
+            pos: [usize; 2],
+            mut get_v_data: F,
+        ) -> Pipe::Fragment {
             // Safety: MSAA buffer will always be large enough
-            let texel = self.msaa_buf
+            let texel = self
+                .msaa_buf
                 .as_mut()
                 .unwrap()
                 .get_mut([pos[0] + 1, pos[1] + 1]);
@@ -426,7 +477,10 @@ where
                 texel.1 = Some(self.pipeline.fragment(get_v_data(pos)));
             }
             // Safety: We know this entry will always be occupied due to the code above
-            texel.1.clone().unwrap_or_else(|| core::hint::unreachable_unchecked())
+            texel
+                .1
+                .clone()
+                .unwrap_or_else(|| core::hint::unreachable_unchecked())
         }
     }
 
@@ -436,9 +490,15 @@ where
         P: Target<Texel = Pipe::Pixel> + Send + Sync,
         D: Target<Texel = f32> + Send + Sync,
     {
-        fn target_size(&self) -> [usize; 2] { self.tgt_size }
-        fn target_min(&self) -> [usize; 2] { self.tgt_min }
-        fn target_max(&self) -> [usize; 2] { self.tgt_max }
+        fn target_size(&self) -> [usize; 2] {
+            self.tgt_size
+        }
+        fn target_min(&self) -> [usize; 2] {
+            self.tgt_min
+        }
+        fn target_max(&self) -> [usize; 2] {
+            self.tgt_max
+        }
 
         #[inline]
         fn begin_primitive(&mut self) {
@@ -456,18 +516,30 @@ where
         }
 
         #[inline]
-        unsafe fn emit_fragment<F: FnMut([f32; 2]) -> Pipe::VertexData>(&mut self, pos: [usize; 2], mut get_v_data: F, z: f32) {
+        unsafe fn emit_fragment<F: FnMut([f32; 2]) -> Pipe::VertexData>(
+            &mut self,
+            pos: [usize; 2],
+            mut get_v_data: F,
+            z: f32,
+        ) {
             if self.depth_mode.write {
                 self.depth.write_exclusive_unchecked(pos, z);
             }
 
             if self.write_pixels {
                 let frag = if self.msaa_level == 0 {
-                    self.pipeline.fragment(get_v_data([pos[0] as f32, pos[1] as f32]))
+                    self.pipeline
+                        .fragment(get_v_data([pos[0] as f32, pos[1] as f32]))
                 } else {
-                    let fract = [(pos[0], self.tgt_min[0]), (pos[1], self.tgt_min[1])]
-                        .map(|(e, tgt_min)| ((e - tgt_min) as f32 / (1 << self.msaa_level) as f32).fract());
-                    let posi = [(pos[0] - self.tgt_min[0]) >> self.msaa_level, (pos[1] - self.tgt_min[1]) >> self.msaa_level];
+                    let fract = [(pos[0], self.tgt_min[0]), (pos[1], self.tgt_min[1])].map(
+                        |(e, tgt_min)| {
+                            ((e - tgt_min) as f32 / (1 << self.msaa_level) as f32).fract()
+                        },
+                    );
+                    let posi = [
+                        (pos[0] - self.tgt_min[0]) >> self.msaa_level,
+                        (pos[1] - self.tgt_min[1]) >> self.msaa_level,
+                    ];
 
                     let tgt_min = self.tgt_min;
                     let msaa_level = self.msaa_level;
@@ -519,7 +591,10 @@ where
             msaa_level,
             msaa_buf: if msaa_level > 0 {
                 Some(Buffer2d::fill_with(
-                    [((tgt_max[0] - tgt_min[0]) >> msaa_level) + 3, ((tgt_max[1] - tgt_min[1]) >> msaa_level) + 3],
+                    [
+                        ((tgt_max[0] - tgt_min[0]) >> msaa_level) + 3,
+                        ((tgt_max[1] - tgt_min[1]) >> msaa_level) + 3,
+                    ],
                     || (u64::MAX, None),
                 ))
             } else {

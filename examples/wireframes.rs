@@ -1,8 +1,11 @@
-use vek::*;
 use derive_more::{Add, Mul};
-use euc::{Pipeline, Buffer2d, Target, PixelMode, DepthMode, TriangleList, Empty, Linear, Texture, Sampler, AaMode, Unit, Clamped};
+use euc::{
+    AaMode, Buffer2d, Clamped, DepthMode, Empty, Linear, Pipeline, PixelMode, Sampler, Target,
+    Texture, TriangleList, Unit,
+};
 use minifb::{Key, MouseButton, MouseMode, Window, WindowOptions};
 use std::marker::PhantomData;
+use vek::*;
 
 struct Teapot<'a> {
     m: Mat4<f32>,
@@ -21,12 +24,16 @@ struct VertexData {
 impl<'a> Pipeline for Teapot<'a> {
     type Vertex = wavefront::Vertex<'a>;
     type VertexData = VertexData;
-    type Primitives = TriangleList;//Lines;
+    type Primitives = TriangleList; //Lines;
     type Fragment = Rgba<f32>;
     type Pixel = u32;
 
-    fn depth_mode(&self) -> DepthMode { DepthMode::LESS_WRITE }
-    fn aa_mode(&self) -> AaMode { AaMode::Msaa { level: 1 } }
+    fn depth_mode(&self) -> DepthMode {
+        DepthMode::LESS_WRITE
+    }
+    fn aa_mode(&self) -> AaMode {
+        AaMode::Msaa { level: 1 }
+    }
 
     #[inline(always)]
     fn vertex(&self, vertex: &Self::Vertex) -> ([f32; 4], Self::VertexData) {
@@ -35,7 +42,10 @@ impl<'a> Pipeline for Teapot<'a> {
 
         (
             (self.p * self.v * wpos).into_array(),
-            VertexData { wpos: wpos.xyz(), wnorm: wnorm.xyz() },
+            VertexData {
+                wpos: wpos.xyz(),
+                wnorm: wnorm.xyz(),
+            },
         )
     }
 
@@ -82,7 +92,9 @@ fn main() {
             ori.y += (mouse_pos.0 - old_mouse_pos.0) * 0.003;
         }
         if win.get_mouse_down(MouseButton::Right) {
-            dist = (dist + (mouse_pos.1 - old_mouse_pos.1) as f32 * 0.01).max(1.0).min(20.0);
+            dist = (dist + (mouse_pos.1 - old_mouse_pos.1) as f32 * 0.01)
+                .max(1.0)
+                .min(20.0);
         }
         old_mouse_pos = mouse_pos;
 
@@ -92,8 +104,7 @@ fn main() {
 
         // Set up the camera matrix
         let p = Mat4::perspective_fov_lh_zo(1.3, w as f32, h as f32, 0.01, 100.0);
-        let v = Mat4::<f32>::identity()
-            * Mat4::translation_3d(Vec3::new(0.0, 0.0, dist));
+        let v = Mat4::<f32>::identity() * Mat4::translation_3d(Vec3::new(0.0, 0.0, dist));
         // Set up the teapot matrix
         let m = Mat4::<f32>::translation_3d(-teapot_pos)
             * Mat4::rotation_x(core::f32::consts::PI)
@@ -101,26 +112,28 @@ fn main() {
             * Mat4::rotation_y(ori.y);
 
         // Colour pass
-        Teapot { m, v, p, light_pos, phantom: PhantomData }.render(
-            model.vertices(),
-            &mut color,
-            &mut depth,
-        );
+        Teapot {
+            m,
+            v,
+            p,
+            light_pos,
+            phantom: PhantomData,
+        }
+        .render(model.vertices(), &mut color, &mut depth);
 
         win.update_with_buffer(color.raw(), w, h).unwrap();
 
         if i % 60 == 0 {
             let elapsed = start_time.elapsed();
-            win.set_title(&format!("Teapot (Time = {:?}, FPS = {})", elapsed, 1.0 / elapsed.as_secs_f32()));
+            win.set_title(&format!(
+                "Teapot (Time = {:?}, FPS = {})",
+                elapsed,
+                1.0 / elapsed.as_secs_f32()
+            ));
         }
         i += 1;
     }
 }
-
-
-
-
-
 
 /*
 use euc::{buffer::Buffer2d, rasterizer, Pipeline, Target};

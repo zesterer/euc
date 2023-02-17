@@ -40,8 +40,6 @@
 
 #![no_std]
 
-#![feature(type_alias_impl_trait)]
-
 extern crate alloc;
 
 #[cfg(feature = "std")]
@@ -67,11 +65,13 @@ pub mod texture;
 // Reexports
 pub use crate::{
     buffer::{Buffer, Buffer1d, Buffer2d, Buffer3d, Buffer4d},
-    pipeline::{Pipeline, DepthMode, PixelMode, CoordinateMode, Handedness, YAxisDirection, AaMode},
-    primitives::{TriangleList, LineList, LineTriangleList},
-    texture::{Texture, Target, Empty},
-    rasterizer::CullMode,
-    sampler::{Sampler, Nearest, Linear, Clamped, Tiled, Mirrored},
     index::IndexedVertices,
     math::Unit,
+    pipeline::{
+        AaMode, CoordinateMode, DepthMode, Handedness, Pipeline, PixelMode, YAxisDirection,
+    },
+    primitives::{LineList, LineTriangleList, TriangleList},
+    rasterizer::CullMode,
+    sampler::{Clamped, Linear, Mirrored, Nearest, Sampler, Tiled},
+    texture::{Empty, Target, Texture},
 };

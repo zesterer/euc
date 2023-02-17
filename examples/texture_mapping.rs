@@ -1,7 +1,7 @@
-use euc::{Buffer2d, Pipeline, Target, TriangleList, Sampler, Nearest, Texture};
+use euc::{Buffer2d, Nearest, Pipeline, Sampler, Target, Texture, TriangleList};
 use image_::RgbaImage;
-use vek::{Mat4, Vec2, Vec3, Vec4, Rgba};
 use minifb::{Key, Window, WindowOptions};
+use vek::{Mat4, Rgba, Vec2, Vec3, Vec4};
 
 struct Cube<'a> {
     mvp: Mat4<f32>,
@@ -138,12 +138,8 @@ fn main() {
         };
         cube.render(
             &[
-                0, 3, 1, 1, 3, 2,
-                4, 5, 7, 5, 6, 7,
-                8, 11, 9, 9, 11, 10,
-                12, 13, 15, 13, 14, 15,
-                16, 17, 19, 17, 18, 19,
-                20, 23, 21, 21, 23, 22,
+                0, 3, 1, 1, 3, 2, 4, 5, 7, 5, 6, 7, 8, 11, 9, 9, 11, 10, 12, 13, 15, 13, 14, 15,
+                16, 17, 19, 17, 18, 19, 20, 23, 21, 21, 23, 22,
             ],
             &mut color,
             &mut depth,

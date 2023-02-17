@@ -1,4 +1,4 @@
-use euc::{Buffer2d, Pipeline, TriangleList, Empty};
+use euc::{Buffer2d, Empty, Pipeline, TriangleList};
 use minifb::{Key, Window, WindowOptions};
 use vek::*;
 
@@ -15,7 +15,9 @@ impl Pipeline for Triangle {
         ([pos[0], pos[1], 0.0, 1.0], *col)
     }
 
-    fn fragment(&self, col: Self::VertexData) -> Self::Fragment { col }
+    fn fragment(&self, col: Self::VertexData) -> Self::Fragment {
+        col
+    }
 
     fn blend(&self, _: Self::Pixel, col: Self::Fragment) -> Self::Pixel {
         u32::from_le_bytes(col.map(|e| (e * 255.0) as u8).into_array())

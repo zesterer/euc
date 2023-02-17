@@ -1,12 +1,9 @@
 pub mod lines;
 pub mod triangles;
 
-pub use self::{
-    lines::Lines,
-    triangles::Triangles,
-};
+pub use self::{lines::Lines, triangles::Triangles};
 
-use crate::{CoordinateMode, math::WeightedSum};
+use crate::{math::WeightedSum, CoordinateMode};
 
 /// The face culling strategy used during rendering.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
@@ -47,7 +44,12 @@ pub trait Blitter<V>: Sized {
     /// # Safety
     ///
     /// This function *must* be called with a position that is valid for size and bounds that this type provides.
-    unsafe fn emit_fragment<F: FnMut([f32; 2]) -> V>(&mut self, pos: [usize; 2], get_v_data: F, z: f32);
+    unsafe fn emit_fragment<F: FnMut([f32; 2]) -> V>(
+        &mut self,
+        pos: [usize; 2],
+        get_v_data: F,
+        z: f32,
+    );
 }
 
 /// A trait that represents types that turn vertex streams into fragment coordinates.
@@ -77,8 +79,7 @@ pub trait Rasterizer: Default {
         coordinate_mode: CoordinateMode,
         config: Self::Config,
         blitter: B,
-    )
-    where
+    ) where
         V: Clone + WeightedSum,
         I: Iterator<Item = ([f32; 4], V)>,
         B: Blitter<V>;

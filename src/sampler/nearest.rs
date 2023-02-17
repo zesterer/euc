@@ -1,8 +1,5 @@
 use super::*;
-use core::{
-    ops::Mul,
-    marker::PhantomData,
-};
+use core::{marker::PhantomData, ops::Mul};
 
 /// A sampler that uses nearest-neighbor sampling.
 pub struct Nearest<T, I = f32> {
@@ -22,15 +19,21 @@ where
     type Texture = T;
 
     #[inline(always)]
-    fn raw_texture(&self) -> &Self::Texture { &self.texture }
+    fn raw_texture(&self) -> &Self::Texture {
+        &self.texture
+    }
 
     #[inline(always)]
     fn sample(&self, index: [Self::Index; N]) -> Self::Sample {
-        unsafe { self.raw_texture().read_unchecked(I::denormalize_array(index, self.raw_texture().size())) }
+        unsafe {
+            self.raw_texture()
+                .read_unchecked(I::denormalize_array(index, self.raw_texture().size()))
+        }
     }
 
     #[inline(always)]
     unsafe fn sample_unchecked(&self, index: [Self::Index; N]) -> Self::Sample {
-        self.raw_texture().read_unchecked(I::denormalize_array(index, self.raw_texture().size()))
+        self.raw_texture()
+            .read_unchecked(I::denormalize_array(index, self.raw_texture().size()))
     }
 }
