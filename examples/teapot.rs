@@ -19,12 +19,17 @@ impl<'a> Pipeline for TeapotShadow<'a> {
     type Fragment = Unit;
     type Pixel = ();
 
+    #[inline(always)]
     fn pixel_mode(&self) -> PixelMode {
         PixelMode::PASS
     }
+
+    #[inline(always)]
     fn depth_mode(&self) -> DepthMode {
         DepthMode::LESS_WRITE
     }
+
+    #[inline(always)]
     fn rasterizer_config(&self) -> CullMode {
         CullMode::None
     }
@@ -43,7 +48,7 @@ impl<'a> Pipeline for TeapotShadow<'a> {
     }
 
     #[inline(always)]
-    fn blend(&self, old: Self::Pixel, new: Self::Fragment) {}
+    fn blend(&self, old: Self::Pixel, _new: Self::Fragment) {}
 }
 
 struct Teapot<'a> {
@@ -69,6 +74,7 @@ impl<'a> Pipeline for Teapot<'a> {
     type Fragment = Rgba<f32>;
     type Pixel = u32;
 
+    #[inline(always)]
     fn depth_mode(&self) -> DepthMode {
         DepthMode::LESS_WRITE
     }

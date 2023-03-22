@@ -89,9 +89,10 @@ impl Rasterizer for Triangles {
 
             // Create a matrix that allows conversion between screen coordinates and interpolation weights
             let coords_to_weights = {
-                let c = Vec3::new(verts_hom.z.x, verts_hom.z.y, verts_hom.z.w);
-                let ca = Vec3::new(verts_hom.x.x, verts_hom.x.y, verts_hom.x.w) - c;
-                let cb = Vec3::new(verts_hom.y.x, verts_hom.y.y, verts_hom.y.w) - c;
+                let (a, b, c) = verts_hom.into_tuple();
+                let c = Vec3::new(c.x, c.y, c.w);
+                let ca = Vec3::new(a.x, a.y, a.w) - c;
+                let cb = Vec3::new(b.x, b.y, b.w) - c;
                 let n = ca.cross(cb);
                 let rec_det = if n.magnitude_squared() > 0.0 {
                     1.0 / n.dot(c).min(-core::f32::EPSILON)
@@ -131,55 +132,36 @@ impl Rasterizer for Triangles {
             let w_hom_dx = (weights_at(Vec2::unit_x() * 1000.0) - w_hom_origin) / 1000.0;
             let w_hom_dy = (weights_at(Vec2::unit_y() * 1000.0) - w_hom_origin) / 1000.0;
 
+            // First, order vertices by height
+            let mut verts_by_y = verts_screen;
+            verts_by_y.sort_unstable_by_key(|e| e.y as isize);
+
             // Iterate over fragment candidates within the triangle's bounding box
             (tri_bounds_clamped.min.y..tri_bounds_clamped.max.y).for_each(|y| {
-                // More precisely find the required draw bounds for this row with a little maths
-                // First, order vertices by height
-                let verts_by_y = if verts_screen.x.y < verts_screen.y.y.min(verts_screen.z.y) {
-                    if verts_screen.y.y < verts_screen.z.y {
-                        Vec3::new(verts_screen.x, verts_screen.y, verts_screen.z)
-                    } else {
-                        Vec3::new(verts_screen.x, verts_screen.z, verts_screen.y)
-                    }
-                } else if verts_screen.y.y < verts_screen.x.y.min(verts_screen.z.y) {
-                    if verts_screen.x.y < verts_screen.z.y {
-                        Vec3::new(verts_screen.y, verts_screen.x, verts_screen.z)
-                    } else {
-                        Vec3::new(verts_screen.y, verts_screen.z, verts_screen.x)
-                    }
+                let Vec3 { x: a, y: b, z: c } = verts_by_y;
+                // For each of the lines, calculate the point at which our row intersects it
+                let ac = Lerp::lerp(a.x, c.x, (y as f32 - a.y) / (c.y - a.y)); // Longest side
+                                                                               // Then, depending on the half of the triangle we're in, we need to check different lines
+                let row_bounds = if (y as f32) < b.y {
+                    let ab = Lerp::lerp(a.x, b.x, (y as f32 - a.y) / (b.y - a.y));
+                    Vec2::new(ab.min(ac), ab.max(ac))
                 } else {
-                    if verts_screen.x.y < verts_screen.y.y {
-                        Vec3::new(verts_screen.z, verts_screen.x, verts_screen.y)
-                    } else {
-                        Vec3::new(verts_screen.z, verts_screen.y, verts_screen.x)
-                    }
+                    let bc = Lerp::lerp(b.x, c.x, (y as f32 - b.y) / (c.y - b.y));
+                    Vec2::new(bc.min(ac), bc.max(ac))
                 };
-
-                // Then, depending on the half of the triangle we're in, we need to check different lines
-                let edge_lines = if (y as f32) < verts_by_y.y.y {
-                    Vec2::new((verts_by_y.x, verts_by_y.y), (verts_by_y.x, verts_by_y.z))
-                } else {
-                    Vec2::new((verts_by_y.y, verts_by_y.z), (verts_by_y.x, verts_by_y.z))
-                };
-
-                // Finally, for each of the lines, calculate the point at which our row intersects it
-                let row_bounds = edge_lines
-                    .map(|(a, b)| {
-                        // Could be more efficient
-                        let x = Lerp::lerp(a.x, b.x, (y as f32 - a.y) / (b.y - a.y));
-                        let x2 = Lerp::lerp(a.x, b.x, (y as f32 + 1.0 - a.y) / (b.y - a.y));
-                        let (x_min, x_max) = (x.min(x2), x.max(x2));
-                        Vec2::new(x_min, x_max)
-                    })
-                    .reduce(|a, b| Vec2::new(a.x.min(b.x), a.y.max(b.y)))
-                    .map(|e| e.max(0.0));
 
                 // Now we have screen-space bounds for the row. Clean it up and clamp it to the screen bounds
-                let row_range = Vec2::new(
-                    (row_bounds.x as usize)
-                        .saturating_sub(1)
-                        .max(tri_bounds_clamped.min.x),
-                    (row_bounds.y.ceil() as usize).min(tri_bounds_clamped.max.x),
+                let row_range = Vec2::new(row_bounds.x.floor(), row_bounds.y.ceil()).map2(
+                    Vec2::new(tri_bounds_clamped.min.x, tri_bounds_clamped.max.x),
+                    |e, b| {
+                        if e >= tri_bounds_clamped.min.x as f32
+                            && e < tri_bounds_clamped.max.x as f32
+                        {
+                            e as usize
+                        } else {
+                            b
+                        }
+                    },
                 );
 
                 // Stupid version
