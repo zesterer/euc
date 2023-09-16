@@ -18,7 +18,7 @@ impl Rasterizer for Lines {
         mut vertices: I,
         _principal_x: bool,
         coordinate_mode: CoordinateMode,
-        cull_mode: CullMode,
+        _cull_mode: CullMode,
         mut blitter: B,
     ) where
         V: Clone + WeightedSum,
@@ -28,12 +28,6 @@ impl Rasterizer for Lines {
         let tgt_size = blitter.target_size();
         let tgt_min = blitter.target_min();
         let tgt_max = blitter.target_max();
-
-        let cull_dir = match cull_mode {
-            CullMode::None => None,
-            CullMode::Back => Some(1.0),
-            CullMode::Front => Some(-1.0),
-        };
 
         let flip = match coordinate_mode.y_axis_direction {
             YAxisDirection::Down => Vec2::new(1.0, 1.0),

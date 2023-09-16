@@ -1,5 +1,4 @@
 use crate::rasterizer::{Lines, Rasterizer, Triangles};
-use core::marker::PhantomData;
 
 pub trait PrimitiveKind<V> {
     type Rasterizer: Rasterizer;
