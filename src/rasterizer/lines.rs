@@ -1,5 +1,6 @@
 use super::*;
 use crate::{CoordinateMode, YAxisDirection};
+use core::cmp::max;
 use vek::*;
 
 #[cfg(feature = "micromath")]
@@ -121,19 +122,19 @@ impl Rasterizer for Lines {
 
                 a
             })*/;
+            let (x1, y1) = verts_screen.x.as_::<isize>().into_tuple();
+            let (x2, y2) = {
+                let (x2, y2) = verts_screen.y.as_::<isize>().into_tuple();
+                // `clipline` uses inclusive ranges, might be slightly wrong to just subtract 1
+                (max((x2 - 1), x1), max((y2 - 1), y1))
+            };
+
+            let (wx1, wy1) = screen_min.as_::<isize>().into_tuple();
+            let (wx2, wy2) = screen_max.as_::<isize>().into_tuple();
 
             // TODO: This sucks. A lot. It uses 3-vertex homogeneous coordinates with the last vertex being very close
             // to the first, it does loads of unnecessary work for stuff outside the viewport, and it's not even fast.
-            for (x, y) in
-                // [
-                //     verts_screen.x.as_().into_tuple(),
-                //     verts_screen.y.as_().into_tuple(),
-                // ]
-                bresenham::Bresenham::new(
-                    verts_clamped.x.as_().into_tuple(),
-                    verts_clamped.y.as_().into_tuple(),
-                )
-            {
+            clipline::clipline(((x1, y1), (x2, y2)), ((wx1, wy1), (wx2, wy2)), |x, y| {
                 if (tri_bounds_clamped.min.x as isize..tri_bounds_clamped.max.x as isize)
                     .contains(&x)
                     && (tri_bounds_clamped.min.y as isize..tri_bounds_clamped.max.y as isize)
@@ -173,7 +174,7 @@ impl Rasterizer for Lines {
                         }
                     }
                 }
-            }
+            });
         });
     }
 }
