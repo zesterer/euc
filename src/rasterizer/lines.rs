@@ -1,6 +1,5 @@
 use super::*;
 use crate::{CoordinateMode, YAxisDirection};
-use core::cmp::max;
 use vek::*;
 
 #[cfg(feature = "micromath")]
@@ -112,34 +111,18 @@ impl Rasterizer for Lines {
             let w_hom_dx = (weights_at(Vec2::unit_x() * 1000.0) - w_hom_origin) / 1000.0;
             let w_hom_dy = (weights_at(Vec2::unit_y() * 1000.0) - w_hom_origin) / 1000.0;
 
-            let verts_clamped = verts_screen/*verts_screen.xy().map2(verts_screen.xy().yx(), |mut a, b| {
-                let dir = b - a;
-                if a.y < screen_min.y { a += Vec2::new(dir.x / dir.y, 1.0) * -(a.y - screen_min.y); }
-                if a.x < screen_min.x { a += Vec2::new(1.0, dir.y / dir.x) * -(a.x - screen_min.x); }
-
-                if a.y > screen_max.y { a += Vec2::new(dir.x / dir.y, 1.0) * (a.y - screen_max.y); }
-                if a.x > screen_max.x { a += Vec2::new(1.0, dir.y / dir.x) * (a.x - screen_max.x); }
-
-                a
-            })*/;
             let (x1, y1) = verts_screen.x.as_::<isize>().into_tuple();
-            let (x2, y2) = {
-                let (x2, y2) = verts_screen.y.as_::<isize>().into_tuple();
-                // `clipline` uses inclusive ranges, might be slightly wrong to just subtract 1
-                (max((x2 - 1), x1), max((y2 - 1), y1))
-            };
+            let (x2, y2) = verts_screen.y.as_::<isize>().into_tuple();
 
-            let (wx1, wy1) = screen_min.as_::<isize>().into_tuple();
-            let (wx2, wy2) = screen_max.as_::<isize>().into_tuple();
+            let (wx1, wy1) = tri_bounds_clamped.min.as_::<isize>().into_tuple();
+            let (wx2, wy2) = tri_bounds_clamped.max.as_::<isize>().into_tuple();
 
             // TODO: This sucks. A lot. It uses 3-vertex homogeneous coordinates with the last vertex being very close
-            // to the first, it does loads of unnecessary work for stuff outside the viewport, and it's not even fast.
-            clipline::clipline(((x1, y1), (x2, y2)), ((wx1, wy1), (wx2, wy2)), |x, y| {
-                if (tri_bounds_clamped.min.x as isize..tri_bounds_clamped.max.x as isize)
-                    .contains(&x)
-                    && (tri_bounds_clamped.min.y as isize..tri_bounds_clamped.max.y as isize)
-                        .contains(&y)
-                {
+            // TODO: `clipline` is endpoints-inclusive compared to `bresenham`, how problematic is that?
+            clipline::clipline(
+                ((x1, y1), (x2, y2)),
+                ((wx1, wy1), (wx2 - 1, wy2 - 1)),
+                |x, y| {
                     let (x, y) = (x as usize, y as usize);
                     // Find the barycentric weights for the start of this row
                     let w_hom = w_hom_origin + w_hom_dy * y as f32 + w_hom_dx * x as f32;
@@ -173,8 +156,8 @@ impl Rasterizer for Lines {
                             blitter.emit_fragment([x, y], get_v_data, z);
                         }
                     }
-                }
-            });
+                },
+            );
         });
     }
 }
