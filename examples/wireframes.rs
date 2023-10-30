@@ -1,7 +1,7 @@
 use derive_more::{Add, Mul};
 use euc::{
-    AaMode, Buffer2d, Clamped, DepthMode, Empty, Linear, Pipeline, PixelMode, Sampler, Target,
-    Texture, TriangleList, Unit,
+    AaMode, Buffer2d, Clamped, DepthMode, Empty, LineTriangleList, Linear, Pipeline, PixelMode,
+    Sampler, Target, Texture, Unit,
 };
 use minifb::{Key, MouseButton, MouseMode, Window, WindowOptions};
 use std::marker::PhantomData;
@@ -24,7 +24,7 @@ struct VertexData {
 impl<'a> Pipeline for Teapot<'a> {
     type Vertex = wavefront::Vertex<'a>;
     type VertexData = VertexData;
-    type Primitives = TriangleList; //Lines;
+    type Primitives = LineTriangleList;
     type Fragment = Rgba<f32>;
     type Pixel = u32;
 
