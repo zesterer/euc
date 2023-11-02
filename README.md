@@ -2,84 +2,158 @@
 
 [![crates.io](https://img.shields.io/crates/v/euc.svg)](https://crates.io/crates/euc)
 [![crates.io](https://docs.rs/euc/badge.svg)](https://docs.rs/euc)
+[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](https://github.com/zesterer/euc)
+![actions-badge](https://github.com/zesterer/euc/workflows/Rust/badge.svg?branch=master)
 
-# <img src="misc/example.png" alt="Utah teapot, rendered with Euc" width="100%"/>
+# <img src="misc/example.png" alt="Utah teapot, rendered with shadow-mapping and phong shading at 60 fps"/>
 
 ## Example
 
 ```rust
-struct Example;
+// A type that specifies a rendering pipeline.
+// You can add fields to this type, like uniforms in traditional GPU shader programs.
+struct Triangle;
 
-impl Pipeline for Example {
-    type Vertex = [f32; 2];
-    type VsOut = ();
-    type Pixel = [u8; 4];
+impl Pipeline for Triangle {
+    type Vertex<'v> = [f32; 2]; // Each vertex has an x and y component
+    type VertexData = Unit; // No data is passed from the vertex shader to the fragment shader
+    type Primitives = TriangleList; // Our vertices come in the form of a list of triangles
+    type Fragment = [u8; 3]; // Each fragment is 3 bytes: red, green, and blue
+    type Pixel = [u8; 3]; // Color buffer pixels have the same format as fragments.
 
-    // Vertex shader
-    fn vert(&self, pos: &Self::Vertex) -> ([f32; 3], Self::VsOut) {
-        ([pos[0], pos[1], 0.0], ())
+    // Vertex shader (determines the screen-space position of each vertex)
+    fn vertex(&self, pos: &Self::Vertex<'_>) -> ([f32; 4], Self::VertexData) {
+        ([pos[0], pos[1], 0.0, 1.0], Unit)
     }
 
-    // Fragment shader
-    fn frag(&self, _: &Self::VsOut) -> Self::Pixel {
-        [255, 0, 0, 255] // Red
+    // Fragment shader (determines the colour of each triangle fragment)
+    fn fragment(&self, _: Self::VertexData) -> Self::Fragment {
+        [255, 0, 0] // Paint the triangle red
+    }
+
+    // Blend shader (determines how to blend new fragments into the existing colour buffer)
+    fn blend(&self, _: Self::Pixel, col: Self::Fragment) -> Self::Pixel {
+        col // Just replace the color buffer's previous pixel
     }
 }
 
-fn main() {
-    let mut color = Buffer2d::new([640, 480], [0; 4]);
-    let mut depth = Buffer2d::new([640, 480], 1.0);
+// Create a new color buffer to render to
+let mut color = Buffer2d::new([640, 480], [0; 3]);
 
-    Example.draw::<Triangles<_>, _>(
-        &[
-            [-1.0, -1.0],
-            [ 1.0, -1.0],
-            [ 0.0,  1.0],
-        ],
-        &mut color,
-        &mut depth,
-    );
-}
+Triangle.render(
+    // Specify the coordinates of the triangle's corners
+    &[[-1.0, -1.0], [1.0, -1.0], [0.0, 1.0]],
+    // Specify the color buffer to render to
+    &mut color,
+    // We have no need for a depth buffer, so use `Empty` as a substitute
+    &mut Empty::default(),
+);
 ```
-
-See `examples/` for more code examples.
 
 ## What is `euc`?
 
-`euc` is a versatile, simple to use crate that allows 3D rendering on the CPU. It has a portable, compact design that makes it perfect for
-prototyping ideas, unit testing, or even simple realtime applications. `euc` is currently under active development.
+`euc` is a [software-rendering](https://en.wikipedia.org/wiki/Software_rendering)
+crate for rendering 3D scenes on the CPU. The API is designed to be clean,
+powerful, and heavily leans on Rust's type system to ensure correct usage.
+
+`euc` is fast enough to render simple scenes in real-time and supports
+thread-based parallelism to accelerate rendering.
+
+## Features
+
+- Write shaders in Rust (vertex, geometry, fragment and blend shaders)
+- Multithreading support for parallel rendering acceleration
+- Many supported primitives and vertex formats (triangle lists, line pairs, etc.)
+- N-dimensional textures and samplers (including support for filtering, clamping, tiling, mirroring, etc.)
+- Customisable coordinate space (choose compatibility with OpenGL, Vulkan, DirectX, or Metal)
+- Built-in support for index buffers
 
 ## Why?
 
-- Modern graphics APIs are complex, verbose beasts. Rendering with the CPU means less complexity, less boilerplate and less verbosity:
-  perfect for testing ideas.
+Below are a few circumstances in which you might want to use `euc`.
 
-- Modern CPUs are fast enough to make simple 3D programs run at reasonable speeds (although they are of course no match for GPUs). It's
-  possible to write surprisingly complex realtime 3D software with the CPU only.
+### Learning and experimentation
 
-- Not requiring a GPU interface means that `euc` is incredibly portable. As a result, `euc` is `no_std` (if you have a nightly compiler).
+Modern graphics APIs are complex, verbose beasts. The code required to set them
+up properly requires a lot of bureaucratic mumbo jumbo. This problem has only
+become worse with the latest iteration of graphics APIs. Vulkan's canonical
+['Hello Triangle' example](https://vulkan-tutorial.com/code/16_swap_chain_recreation.cpp)
+is, when shader code is included, 994 lines of code. Compare that to `euc`'s 34.
+This is obviously not without tradeoff: Vulkan is a powerful modern graphics API
+that's designed for high-performance GPGPU on a vast array of hardware while
+`euc` is simply a humble software-renderer.
 
-- `euc` has consistent cross-platform behaviour and doesn't require a GPU to run. This makes it perfect for use as a unit testing tool.
+However, for someone new to 3D rendering that wants to explore new techniques
+without all of the beaurocratic cruft, `euc` might well serve a useful purpose.
 
-- Running on the CPU allows a more dynamic approach to data access.
-  For applications in which performance is less of a concern, `euc` lowers the barrier of low-level 3D development and allows for more novel
-  approaches to graphics rendering to be realised.
+### Static images, pre-renders, and UI
+
+`euc` may not be well-suited to high-performance real-time graphics, but there
+are many applications that don't require this. For example,
+[Veloren](https://veloren.net/) currently uses `euc` to pre-render 3D item
+models as icons to be displayed in-game later.
+
+`euc` is also more than fast enough for soft real-time applications such as UI
+rendering, particularly for state-driven UIs that only update when events occur.
+In addition, tricky rendering problems like font rasterization become much
+simpler to solve on the CPU.
+
+### Embedded
+
+`euc` doesn't require `std` to run. Are you writing a toy OS? Do you want a
+pretty UI with a 3D graphics API but you don't want to write your own GPU
+drivers? `euc` has you covered, even for simple real-time graphics.
+
+### Testing
+
+`euc` doesn't need a GPU to run. Most servers and CI machines don't have access
+to one either. If you want to check the consistency of some rendered output,
+`euc` is perfect for the job.
+
+### Unconventional environments
+
+Access to render surfaces for most modern graphics APIs is done through a window
+manager or similar such component that manages access to framebuffers. Don't
+have access to that because you're writing a 3D command-line game? `euc` might
+be what you're looking for. In addition, `euc` uses Rust's type system to allow
+rendering to unconventional framebuffer formats. Now you can render to a `char`
+buffer!
+
+### Relaxed data access patterns
+
+GPUs are brilliantly fast, but there's a reason that we don't use them for
+everything: they're also *heavily* optimised around very specific kinds of data
+manipulation. CPUs are more general-purpose and as a result, `euc` allows much
+more dynamic access to rendering resources.
 
 ## Coordinate System
 
-Where possible, `euc` tries to use a coordinate system similar in nature to OpenGL. If you're used to OpenGL, you'll have no trouble working
-with `euc`.
+By default, `euc` uses a left-handed coordinate system with 0-1 z clipping (like
+Vulkan). However, both of these properties can be changed independently and
+`euc` provides coordinate system constants that correspond to those of common
+graphics APIs such as:
+
+- `CoordinateMode::VULKAN`
+- `CoordinateMode::OPENGL`
+- `CoordinateMode::METAL`
+- `CoordinateMode::DIRECTX`
+
+Note that using these constants do not change the coordinates of things like
+texture samplers, yet.
 
 ## Release Mode
 
-Cargo, by default, compiles Rust code in debug mode. In this mode, very few optimisations are made upon the code, and as a result the
-performance of software rendering tends to suffer. To experience this project with good performance, make sure to compile with the
-`--release` flag.
+Cargo, by default, compiles Rust code in debug mode. In this mode, very few
+optimisations are made upon the code, and as a result the performance of
+software rendering tends to suffer. To experience this project with good
+performance, make sure to compile with the `--release` flag.
 
 ## `no_std`
 
-`euc` can be compiled on platforms that lack standard library support. This makes it ideal for rendering 3D graphics on embedded devices.
-You can enable `no_std` support by disabling the default features and enabling the `libm` feature in your `Cargo.toml` file like so:
+`euc` can be compiled on platforms that lack standard library support. This
+makes it ideal for rendering 3D graphics on embedded devices. You can enable
+`no_std` support by disabling the default features and enabling the `libm`
+feature in your `Cargo.toml` file like so:
 
 ```toml
 [dependencies]
@@ -88,19 +162,20 @@ euc = { version = "x.y.z", default-features = false, features = ["libm"] }
 
 ## Goals
 
-- Support programmable shaders written in Rust
+- Support programmable shaders written in Rust.
 
-- Support common pipeline features such as texture samplers, multiple rendering passes, uniform data, etc.
+- Support common pipeline features such as texture samplers, multiple rendering
+  passes, uniform data, etc.
 
-- Simple, elegant interface that scales well
+- Simple, elegant API that scales well and doesn't get in the way.
 
-- Correctness
+- Correctness, where doing so doesn't significantly compromise performance.
 
 ## Non-Goals
 
-- Extreme optimisation (although obvious low-hanging fruit will be picked)
+- Extreme optimisation (although obvious low-hanging fruit will be picked).
 
-- Compliance/compatibility with an existing API (i.e: OpenGL)
+- Compliance/compatibility with an existing API (i.e: OpenGL).
 
 ## License
 
@@ -110,4 +185,4 @@ euc = { version = "x.y.z", default-features = false, features = ["libm"] }
 
 - MIT license (LICENSE-MIT or http://opensource.org/licenses/MIT)
 
-at the disgression of the user.
+at the discretion of the user.

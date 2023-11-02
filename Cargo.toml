@@ -1,32 +1,43 @@
 [package]
 name = "euc"
-version = "0.5.3"
+version = "0.6.0"
 description = "A software rendering crate that lets you write shaders with Rust"
 authors = ["Joshua Barretto <joshua.s.barretto@gmail.com>", "Martin Sandfuchs <martin@cluginbuehl.ch>"]
 license = "Apache-2.0 AND MIT"
 repository = "https://github.com/zesterer/euc"
 readme = "README.md"
 edition = "2018"
-keywords = ["renderer", "3D", "graphics", "raster"]
+keywords = ["renderer", "3D", "graphics", "rasterizer", "shader"]
 exclude = [
 	"/misc",
 	"/misc/*",
 ]
 
 [dependencies]
-num-traits = { version = "0.2.11", default-features = false, optional = true }
-vek = { version = "0.14.1", default-features = false, features = ["rgb", "rgba"] }
+vek = { version = "0.16", default-features = false, features = [] }
+image = { version = "0.24", optional = true }
+num_cpus = { version = "1.13", optional = true }
+fxhash = { version = "0.2", optional = true }
+micromath = { version = "1.1", optional = true }
+clipline = "0.1.2"
 
 [features]
-default = ["std"]
+default = ["std", "image", "par"]
 std = ["vek/std"]
-libm = ["vek/libm", "num-traits"]
+libm = ["vek/libm"]
+nightly = []
+simd = ["vek/repr_simd", "vek/platform_intrinsics"]
+image = ["dep:image"]
+par = ["std", "num_cpus", "fxhash"]
+micromath = ["dep:micromath"]
 
 [dev-dependencies]
-minifb = "0.19.1"
-tobj = "2.0.2"
-criterion = "0.3"
-image = "0.23.12"
+vek = { version = "0.16", default-features = false, features = ["rgba"] }
+minifb = "0.20"
+wavefront = "0.2"
+criterion = "0.3.3"
+image = "0.24"
+derive_more = "0.99"
 
 [lib]
 bench = false
@@ -38,3 +49,4 @@ harness = false
 [profile.dev]
 # Optimize by default so we don't need to remember to always pass in --release
 opt-level = 3
+overflow-checks = false

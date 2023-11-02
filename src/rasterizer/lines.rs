@@ -1,132 +1,122 @@
 use super::*;
-use crate::{Interpolate, Pipeline, Target};
-use core::marker::PhantomData;
+use crate::{CoordinateMode, YAxisDirection};
 use vek::*;
 
-/// A rasterizer that produces straight lines from groups of 2 consecutive vertices.
-pub struct Lines<'a, D> {
-    phantom: PhantomData<&'a D>,
-}
+#[cfg(feature = "micromath")]
+use micromath::F32Ext;
 
-impl<'a, D: Target<Item = f32>> Rasterizer for Lines<'a, D> {
-    type Input = [f32; 3]; // Vertex coordinates
-    type Supplement = Option<&'a mut D>; // Depth buffer
+/// A rasterizer that produces filled triangles.
+#[derive(Copy, Clone, Debug, Default)]
+pub struct Lines;
 
-    fn draw<P: Pipeline, T: Target<Item = P::Pixel>>(
-        pipeline: &P,
-        vertices: &[P::Vertex],
-        target: &mut T,
-        mut depth: Self::Supplement,
-    ) {
-        if let Some(depth) = depth.as_ref() {
-            assert_eq!(
-                target.size(),
-                depth.size(),
-                "Target and depth buffers are not similarly sized!"
-            );
-        }
+impl Rasterizer for Lines {
+    type Config = ();
 
-        let size = Vec2::from(target.size());
-        let half_scr = size.map(|e: usize| e as f32 * 0.5);
-        const MIRROR: Vec2<f32> = Vec2 { x: 1.0, y: -1.0 };
+    #[inline]
+    unsafe fn rasterize<V, I, B>(
+        &self,
+        mut vertices: I,
+        _principal_x: bool,
+        coordinate_mode: CoordinateMode,
+        _config: (),
+        mut blitter: B,
+    ) where
+        V: Clone + WeightedSum,
+        I: Iterator<Item = ([f32; 4], V)>,
+        B: Blitter<V>,
+    {
+        let tgt_size = blitter.target_size();
+        let tgt_min = blitter.target_min();
+        let tgt_max = blitter.target_max();
 
-        vertices.chunks_exact(2).for_each(|verts| {
-            // Compute vertex shader outputs
-            let (a_hom, a_vs_out) = pipeline.vert(&verts[0]);
-            let (b_hom, b_vs_out) = pipeline.vert(&verts[1]);
+        let flip = match coordinate_mode.y_axis_direction {
+            YAxisDirection::Down => Vec2::new(1.0, 1.0),
+            YAxisDirection::Up => Vec2::new(1.0, -1.0),
+        };
+
+        let size = Vec2::<usize>::from(tgt_size).map(|e| e as f32);
+
+        let verts_hom_out =
+            core::iter::from_fn(move || Some(Vec2::new(vertices.next()?, vertices.next()?)));
+
+        verts_hom_out.for_each(|verts_hom_out: Vec2<([f32; 4], V)>| {
+            blitter.begin_primitive();
+
+            // Calculate vertex shader outputs and vertex homogeneous coordinates
+            let verts_hom = Vec2::new(verts_hom_out.x.0, verts_hom_out.y.0).map(Vec4::<f32>::from);
+            let verts_out = verts_hom_out.map(|e| e.1);
+
+            let verts_hom = verts_hom.map(|v| v * Vec4::new(flip.x, flip.y, 1.0, 1.0));
 
             // Convert homogenous to euclidean coordinates
-            let a = Vec3::new(a_hom[0], a_hom[1], a_hom[2]) / a_hom[3];
-            let b = Vec3::new(b_hom[0], b_hom[1], b_hom[2]) / b_hom[3];
+            let verts_euc = verts_hom.map(|v_hom| v_hom.xyz() / v_hom.w.max(0.0001));
 
-            // Convert to framebuffer coordinates
-            let a_scr = half_scr * (Vec2::from(a) * MIRROR + 1.0);
-            let b_scr = half_scr * (Vec2::from(b) * MIRROR + 1.0);
+            // Convert vertex coordinates to screen space
+            let verts_screen = verts_euc.map(|euc| size * (euc.xy() * Vec2::new(0.5, -0.5) + 0.5));
 
-            let pa: Vec4<f32> = Vec4::from(a_hom);
-            let pb: Vec4<f32> = Vec4::from(b_hom);
-            let ab: Vec4<f32> = pb - pa;
+            // Calculate the triangle bounds as a bounding box
+            let screen_min = Vec2::<usize>::from(tgt_min).map(|e| e as f32);
+            let screen_max = Vec2::<usize>::from(tgt_max).map(|e| e as f32);
+            let bounds_clamped = Aabr::<usize> {
+                min: (verts_screen.reduce(|a, b| Vec2::partial_min(a, b)) + 0.0)
+                    .clamped(screen_min, screen_max)
+                    .as_(),
+                max: (verts_screen.reduce(|a, b| Vec2::partial_max(a, b)) + 1.0)
+                    .clamped(screen_min, screen_max)
+                    .as_(),
+            };
 
-            let a_px = a_scr.map(|e| e as i32);
-            let b_px = b_scr.map(|e| e as i32);
+            let (x1, y1) = verts_screen.x.as_::<isize>().into_tuple();
+            let (x2, y2) = verts_screen.y.as_::<isize>().into_tuple();
 
-            let min = Vec2::<i32>::min(a_px, b_px);
-            let max = Vec2::<i32>::max(a_px, b_px);
+            let (wx1, wy1) = bounds_clamped.min.as_::<isize>().into_tuple();
+            let (wx2, wy2) = bounds_clamped.max.as_::<isize>().into_tuple();
 
-            if (max.x - min.x) > (max.y - min.y) {
-                let (l_scr, r_scr) = if a_scr.x < b_scr.x {
-                    (a_scr, b_scr)
+            let use_x = (x1 - x2).abs() > (y1 - y2).abs();
+            let norm = 1.0
+                / if use_x {
+                    verts_screen.y.x - verts_screen.x.x
                 } else {
-                    (b_scr, a_scr)
-                };
-                let factor = 1.0 / (r_scr.x - l_scr.x);
-                let m = Mat2::new(pa.w, -pa.x, -ab.w, ab.x) / (ab.x * pa.w - pa.x * ab.w);
-
-                for x in l_scr.x as i32..r_scr.x as i32 {
-                    let y = l_scr.y + (x as f32 - l_scr.x) * factor * (r_scr.y - l_scr.y);
-
-                    // TODO: This is really bad bounds test code, fix this
-                    if x < 0 || (x as usize) >= size.x || y < 0.0 || (y as usize) >= size.y {
-                        continue;
-                    }
-
-                    // Calculate the interpolated depth of this fragment
-                    let s_hom = m * Vec2::new(2.0 * x as f32 / size.x as f32 - 1.0, 1.0);
-                    let s = s_hom.x / s_hom.y;
-                    let z_lerped = (pa.z + s * ab.z) * s_hom.y;
-
-                    let (x, y) = (x as usize, y as usize);
-
-                    // Depth test
-                    if depth.as_ref().map(|depth| z_lerped <= unsafe { depth.get([x, y]) }).unwrap_or(true) {
-                        // Calculate the interpolated vertex attributes of this fragment
-                        let vs_out_lerped =
-                            P::VsOut::lerp2(a_vs_out.clone(), b_vs_out.clone(), 1.0 - s, s);
-
-                        unsafe {
-                            depth.as_mut().map(|depth| depth.set([x, y], z_lerped));
-                            target.set([x, y], pipeline.frag(&vs_out_lerped));
-                        }
-                    }
-                }
-            } else {
-                let (l_scr, r_scr) = if a_scr.y < b_scr.y {
-                    (a_scr, b_scr)
-                } else {
-                    (b_scr, a_scr)
+                    verts_screen.y.y - verts_screen.x.y
                 };
 
-                let factor = 1.0 / (r_scr.y - l_scr.y);
-                let m = Mat2::new(pa.w, -pa.y, -ab.w, ab.y) / (ab.y * pa.w - pa.y * ab.w);
-
-                for y in l_scr.y as i32..r_scr.y as i32 {
-                    let x = l_scr.x + (y as f32 - l_scr.y) * factor * (r_scr.x - l_scr.x);
-
-                    // TODO: This is really bad bounds test code, fix this
-                    if x < 0.0 || (x as usize) >= size.x || y < 0 || (y as usize) >= size.y {
-                        continue;
-                    }
-
-                    // Calculate the interpolated depth of this fragment
-                    let s_hom = m * Vec2::new(-2.0 * y as f32 / size.y as f32 + 1.0, 1.0);
-                    let s = s_hom.x / s_hom.y;
-                    let z_lerped = (pa.z + s * ab.z) * s_hom.y;
-
+            clipline::clipline(
+                ((x1, y1), (x2, y2)),
+                ((wx1, wy1), (wx2 - 1, wy2 - 1)),
+                |x, y| {
                     let (x, y) = (x as usize, y as usize);
 
-                    // Depth test
-                    if depth.as_ref().map(|depth| z_lerped < unsafe { depth.get([x, y]) }).unwrap_or(true) {
-                        // Calculate the interpolated vertex attributes of this fragment
-                        let vs_out_lerped =
-                            P::VsOut::lerp2(a_vs_out.clone(), b_vs_out.clone(), 1.0 - s, s);
+                    let frac = if use_x {
+                        x as f32 - verts_screen.x.x
+                    } else {
+                        y as f32 - verts_screen.x.y
+                    } * norm;
 
-                        unsafe {
-                            depth.as_mut().map(|depth| depth.set([x, y], z_lerped));
-                            target.set([x, y], P::frag(pipeline, &vs_out_lerped));
+                    // Calculate the interpolated z coordinate for the depth target
+                    let z: f32 = Lerp::lerp(verts_euc.x.z, verts_euc.y.z, frac);
+
+                    // Don't use `.contains(&z)`, it isn't inclusive
+                    if coordinate_mode
+                        .z_clip_range
+                        .clone()
+                        .map_or(true, |clip| clip.start <= z && z <= clip.end)
+                    {
+                        if blitter.test_fragment([x, y], z) {
+                            let get_v_data = |[x, y]: [f32; 2]| {
+                                let frac = if use_x {
+                                    x - verts_screen.x.x
+                                } else {
+                                    y - verts_screen.x.y
+                                } * norm;
+
+                                V::weighted_sum(verts_out.as_slice(), &[1.0 - frac, frac])
+                            };
+
+                            blitter.emit_fragment([x, y], get_v_data, z);
                         }
                     }
-                }
-            }
+                },
+            );
         });
     }
 }

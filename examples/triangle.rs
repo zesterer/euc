@@ -1,56 +1,44 @@
-use euc::{buffer::Buffer2d, rasterizer, DepthStrategy, Pipeline};
+use euc::{Buffer2d, Empty, Pipeline, TriangleList};
+use minifb::{Key, Window, WindowOptions};
+use vek::*;
 
 struct Triangle;
 
 impl Pipeline for Triangle {
-    type Vertex = [f32; 4];
-    type VsOut = ();
+    type Vertex<'v> = ([f32; 2], Rgba<f32>);
+    type VertexData = Rgba<f32>;
+    type Primitives = TriangleList;
+    type Fragment = Rgba<f32>;
     type Pixel = u32;
 
-    // Vertex shader
-    // - Returns the 3D vertex location, and the VsOut value to be passed to the fragment shader
-    #[inline(always)]
-    fn vert(&self, pos: &[f32; 4]) -> ([f32; 4], Self::VsOut) {
-        (*pos, ())
+    fn vertex(&self, (pos, col): &Self::Vertex<'_>) -> ([f32; 4], Self::VertexData) {
+        ([pos[0], pos[1], 0.0, 1.0], *col)
     }
 
-    // Specify the depth buffer strategy used for each draw call
-    #[inline(always)]
-    fn get_depth_strategy(&self) -> DepthStrategy {
-        DepthStrategy::None
+    fn fragment(&self, col: Self::VertexData) -> Self::Fragment {
+        col
     }
 
-    // Fragment shader
-    // - Returns (in this case) a u32
-    #[inline(always)]
-    fn frag(&self, _: &Self::VsOut) -> Self::Pixel {
-        let bytes = [255, 0, 0, 255]; // Red
-
-        (bytes[2] as u32) << 0
-            | (bytes[1] as u32) << 8
-            | (bytes[0] as u32) << 16
-            | (bytes[3] as u32) << 24
+    fn blend(&self, _: Self::Pixel, col: Self::Fragment) -> Self::Pixel {
+        u32::from_le_bytes(col.map(|e| (e * 255.0) as u8).into_array())
     }
 }
-
-const W: usize = 640;
-const H: usize = 480;
-
 fn main() {
-    let mut color = Buffer2d::new([W, H], 0);
+    let [w, h] = [640, 480];
+    let mut color = Buffer2d::fill([w, h], 0);
+    let mut win = Window::new("Triangle", w, h, WindowOptions::default()).unwrap();
 
-    Triangle.draw::<rasterizer::Triangles<(f32,)>, _>(
+    Triangle.render(
         &[
-            [-1.0, -1.0, 0.0, 1.0],
-            [1.0, -1.0, 0.0, 1.0],
-            [0.0, 1.0, 0.0, 1.0],
+            ([-1.0, -1.0], Rgba::red()),
+            ([1.0, -1.0], Rgba::green()),
+            ([0.0, 1.0], Rgba::blue()),
         ],
         &mut color,
-        None,
+        &mut Empty::default(),
     );
 
-    let mut win = minifb::Window::new("Triangle", W, H, minifb::WindowOptions::default()).unwrap();
-    while win.is_open() {
-        win.update_with_buffer(color.as_ref(), W, H).unwrap();
+    while win.is_open() && !win.is_key_down(Key::Escape) {
+        win.update_with_buffer(color.raw(), w, h).unwrap();
     }
 }
