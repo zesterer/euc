@@ -5,7 +5,7 @@ use core::{
 };
 
 #[cfg(feature = "micromath")]
-use micromath_::F32Ext;
+use micromath::F32Ext;
 
 /// A sampler that uses nearest-neighbor sampling.
 pub struct Linear<T, I = f32>(pub(crate) T, pub(crate) PhantomData<I>);

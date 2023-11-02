@@ -48,7 +48,7 @@ pub trait Texture<const N: usize> {
         self.read(index)
     }
 
-    /// Create a linearly (or bilinear/trilinear, if the texture is 2D/3D) interpolated (i.e: filtered) sampler from
+    /// Create a linearly (bilinear or trilinear, if the texture is 2D or 3D) interpolated (i.e: filtered) sampler from
     /// this texture.
     ///
     /// See [`Linear`].
@@ -251,9 +251,9 @@ impl<T: Clone + Default> Target for Empty<T> {
 }
 
 #[cfg(feature = "image")]
-impl<P, C> Texture<2> for image_::ImageBuffer<P, C>
+impl<P, C> Texture<2> for image::ImageBuffer<P, C>
 where
-    P: image_::Pixel + Clone + 'static,
+    P: image::Pixel + Clone + 'static,
     C: core::ops::Deref<Target = [P::Subpixel]>,
 {
     type Index = usize;
@@ -271,9 +271,9 @@ where
 }
 
 // #[cfg(feature = "image")]
-// impl<P, C> Target for image_::ImageBuffer<P, C>
+// impl<P, C> Target for image::ImageBuffer<P, C>
 // where
-//     P: image_::Pixel + 'static,
+//     P: image::Pixel + 'static,
 //     C: core::ops::DerefMut<Target = [P::Subpixel]>,
 // {
 //     fn write(&mut self, [x, y]: [usize; 2], texel: Self::Texel) {
@@ -281,6 +281,6 @@ where
 //     }
 
 //     unsafe fn write_unchecked(&mut self, [x, y]: [usize; 2], texel: Self::Texel) {
-//         image_::GenericImage::unsafe_put_pixel(self, x as u32, y as u32, texel);
+//         image::GenericImage::unsafe_put_pixel(self, x as u32, y as u32, texel);
 //     }
 // }

@@ -5,13 +5,13 @@ use vek::*;
 struct Triangle;
 
 impl Pipeline for Triangle {
-    type Vertex = ([f32; 2], Rgba<f32>);
+    type Vertex<'v> = ([f32; 2], Rgba<f32>);
     type VertexData = Rgba<f32>;
     type Primitives = TriangleList;
     type Fragment = Rgba<f32>;
     type Pixel = u32;
 
-    fn vertex(&self, (pos, col): &Self::Vertex) -> ([f32; 4], Self::VertexData) {
+    fn vertex(&self, (pos, col): &Self::Vertex<'_>) -> ([f32; 4], Self::VertexData) {
         ([pos[0], pos[1], 0.0, 1.0], *col)
     }
 

@@ -14,12 +14,12 @@ exclude = [
 ]
 
 [dependencies]
-vek = { version = "0.15", default-features = false, features = [] }
-image_ = { package = "image", version = "0.24", optional = true }
+vek = { version = "0.16", default-features = false, features = [] }
+image = { version = "0.24", optional = true }
 num_cpus = { version = "1.13", optional = true }
 fxhash = { version = "0.2", optional = true }
-micromath_ = { package = "micromath", version = "1.1", optional = true }
-clipline = { version = "0.1.0" }
+micromath = { version = "1.1", optional = true }
+clipline = "0.1.2"
 
 [features]
 default = ["std", "image", "par"]
@@ -27,16 +27,16 @@ std = ["vek/std"]
 libm = ["vek/libm"]
 nightly = []
 simd = ["vek/repr_simd", "vek/platform_intrinsics"]
-image = ["image_"]
+image = ["dep:image"]
 par = ["std", "num_cpus", "fxhash"]
-micromath = ["micromath_"]
+micromath = ["dep:micromath"]
 
 [dev-dependencies]
+vek = { version = "0.16", features = ["rgb"] }
 minifb = "0.20"
 wavefront = "0.2"
 criterion = "0.3.3"
-image_ = { package = "image", version = "0.23" }
-vek = "0.15"
+image = "0.24"
 derive_more = "0.99"
 
 [lib]

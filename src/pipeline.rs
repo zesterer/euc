@@ -6,7 +6,7 @@ use alloc::{collections::VecDeque, vec::Vec};
 use core::{borrow::Borrow, cmp::Ordering, ops::Range};
 
 #[cfg(feature = "micromath")]
-use micromath_::F32Ext;
+use micromath::F32Ext;
 
 /// Defines how a [`Pipeline`] will interact with the depth target.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
@@ -157,7 +157,7 @@ impl Default for CoordinateMode {
 /// Additional methods such as [`Pipeline::depth_mode`], [Pipeline::`cull_mode`], etc. may be implemented to customize
 /// the behaviour of the pipeline even further.
 pub trait Pipeline: Sized {
-    type Vertex;
+    type Vertex<'a>;
     type VertexData: Clone + WeightedSum + Send + Sync;
     type Primitives: PrimitiveKind<Self::VertexData>;
     type Fragment: Clone + WeightedSum;
@@ -200,7 +200,7 @@ pub trait Pipeline: Sized {
     /// [`Pipeline::VertexData`] to be interpolated and passed to the fragment shader.
     ///
     /// This stage is executed at the beginning of pipeline execution.
-    fn vertex(&self, vertex: &Self::Vertex) -> ([f32; 4], Self::VertexData);
+    fn vertex(&self, vertex: &Self::Vertex<'_>) -> ([f32; 4], Self::VertexData);
 
     /// Turn a primitive into many primitives.
     ///
@@ -233,11 +233,11 @@ pub trait Pipeline: Sized {
     /// Render a stream of vertices to given provided pixel target and depth target using the rasterizer.
     ///
     /// **Do not implement this method**
-    fn render<S, V, P, D>(&self, vertices: S, pixel: &mut P, depth: &mut D)
+    fn render<'a, S, V, P, D>(&self, vertices: S, pixel: &mut P, depth: &mut D)
     where
         Self: Send + Sync,
         S: IntoIterator<Item = V>,
-        V: Borrow<Self::Vertex>,
+        V: Borrow<Self::Vertex<'a>>,
         P: Target<Texel = Self::Pixel> + Send + Sync,
         D: Target<Texel = f32> + Send + Sync,
     {

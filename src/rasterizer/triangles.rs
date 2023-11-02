@@ -3,7 +3,7 @@ use crate::{CoordinateMode, YAxisDirection};
 use vek::*;
 
 #[cfg(feature = "micromath")]
-use micromath_::F32Ext;
+use micromath::F32Ext;
 
 /// A rasterizer that produces filled triangles.
 #[derive(Copy, Clone, Debug, Default)]

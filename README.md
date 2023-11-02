@@ -15,14 +15,14 @@
 struct Triangle;
 
 impl Pipeline for Triangle {
-    type Vertex = [f32; 2]; // Each vertex has an x and y component
+    type Vertex<'v> = [f32; 2]; // Each vertex has an x and y component
     type VertexData = Unit; // No data is passed from the vertex shader to the fragment shader
     type Primitives = TriangleList; // Our vertices come in the form of a list of triangles
     type Fragment = [u8; 3]; // Each fragment is 3 bytes: red, green, and blue
     type Pixel = [u8; 3]; // Color buffer pixels have the same format as fragments.
 
     // Vertex shader (determines the screen-space position of each vertex)
-    fn vertex(&self, pos: &Self::Vertex) -> ([f32; 4], Self::VertexData) {
+    fn vertex(&self, pos: &Self::Vertex<'_>) -> ([f32; 4], Self::VertexData) {
         ([pos[0], pos[1], 0.0, 1.0], Unit)
     }
 

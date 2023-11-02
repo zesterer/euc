@@ -1,5 +1,5 @@
 use euc::{Buffer2d, Nearest, Pipeline, Sampler, Target, Texture, TriangleList};
-use image_::RgbaImage;
+use image::RgbaImage;
 use minifb::{Key, Window, WindowOptions};
 use vek::{Mat4, Rgba, Vec2, Vec3, Vec4};
 
@@ -11,14 +11,14 @@ struct Cube<'a> {
 }
 
 impl<'a> Pipeline for Cube<'a> {
-    type Vertex = usize;
+    type Vertex<'v> = usize;
     type VertexData = Vec2<f32>;
     type Primitives = TriangleList;
     type Fragment = Rgba<f32>;
     type Pixel = u32;
 
     #[inline]
-    fn vertex(&self, v_index: &Self::Vertex) -> ([f32; 4], Self::VertexData) {
+    fn vertex(&self, v_index: &Self::Vertex<'_>) -> ([f32; 4], Self::VertexData) {
         (
             (self.mvp * self.positions[*v_index]).into_array(),
             self.uvs[*v_index],
@@ -106,7 +106,7 @@ fn main() {
         Vec2::new(1.0, 1.0),
     ];
 
-    let texture = match image_::open("examples/data/rust.png") {
+    let texture = match image::open("examples/data/rust.png") {
         Ok(image) => image.to_rgba8(),
         Err(err) => {
             eprintln!("{}", err);

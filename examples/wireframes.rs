@@ -1,24 +1,22 @@
 use euc::{Buffer2d, Empty, LineTriangleList, Pipeline, Target, Unit};
 use minifb::{Key, MouseButton, MouseMode, Window, WindowOptions};
-use std::marker::PhantomData;
 use vek::*;
 
-struct Teapot<'a> {
+struct Teapot {
     m: Mat4<f32>,
     v: Mat4<f32>,
     p: Mat4<f32>,
-    phantom: PhantomData<&'a ()>,
 }
 
-impl<'a> Pipeline for Teapot<'a> {
-    type Vertex = wavefront::Vertex<'a>;
+impl Pipeline for Teapot {
+    type Vertex<'v> = wavefront::Vertex<'v>;
     type VertexData = Unit;
     type Primitives = LineTriangleList;
     type Fragment = Rgba<f32>;
     type Pixel = u32;
 
     #[inline(always)]
-    fn vertex(&self, vertex: &Self::Vertex) -> ([f32; 4], Self::VertexData) {
+    fn vertex(&self, vertex: &Self::Vertex<'_>) -> ([f32; 4], Self::VertexData) {
         let wpos = self.m * Vec4::from_point(Vec3::from(vertex.position()));
 
         ((self.p * (self.v * wpos)).into_array(), Unit)
@@ -83,13 +81,7 @@ fn main() {
         let m = Mat4::<f32>::translation_3d(-teapot_pos) * Mat4::rotation_x(core::f32::consts::PI);
 
         // Colour pass
-        Teapot {
-            m,
-            v,
-            p,
-            phantom: PhantomData,
-        }
-        .render(model.vertices(), &mut color, &mut Empty::default());
+        Teapot { m, v, p }.render(model.vertices(), &mut color, &mut Empty::default());
 
         win.update_with_buffer(color.raw(), w, h).unwrap();
 

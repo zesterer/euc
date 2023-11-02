@@ -4,16 +4,14 @@ use euc::{
     Texture, TriangleList, Unit,
 };
 use minifb::{Key, MouseButton, MouseMode, Window, WindowOptions};
-use std::marker::PhantomData;
 use vek::*;
 
-struct TeapotShadow<'a> {
+struct TeapotShadow {
     mvp: Mat4<f32>,
-    phantom: PhantomData<&'a ()>,
 }
 
-impl<'a> Pipeline for TeapotShadow<'a> {
-    type Vertex = wavefront::Vertex<'a>;
+impl Pipeline for TeapotShadow {
+    type Vertex<'v> = wavefront::Vertex<'v>;
     type VertexData = f32;
     type Primitives = TriangleList;
     type Fragment = Unit;
@@ -35,7 +33,7 @@ impl<'a> Pipeline for TeapotShadow<'a> {
     }
 
     #[inline(always)]
-    fn vertex(&self, vertex: &Self::Vertex) -> ([f32; 4], Self::VertexData) {
+    fn vertex(&self, vertex: &Self::Vertex<'_>) -> ([f32; 4], Self::VertexData) {
         (
             (self.mvp * Vec4::from_point(Vec3::from(vertex.position()))).into_array(),
             0.0,
@@ -68,7 +66,7 @@ struct VertexData {
 }
 
 impl<'a> Pipeline for Teapot<'a> {
-    type Vertex = wavefront::Vertex<'a>;
+    type Vertex<'v> = wavefront::Vertex<'v>;
     type VertexData = VertexData;
     type Primitives = TriangleList;
     type Fragment = Rgba<f32>;
@@ -80,7 +78,7 @@ impl<'a> Pipeline for Teapot<'a> {
     }
 
     #[inline(always)]
-    fn vertex(&self, vertex: &Self::Vertex) -> ([f32; 4], Self::VertexData) {
+    fn vertex(&self, vertex: &Self::Vertex<'_>) -> ([f32; 4], Self::VertexData) {
         let wpos = self.m * Vec4::from_point(Vec3::from(vertex.position()));
         let wnorm = self.m * Vec4::from_direction(-Vec3::from(vertex.normal().unwrap()));
 
@@ -205,11 +203,11 @@ fn main() {
         let m = Mat4::<f32>::translation_3d(-teapot_pos) * Mat4::rotation_x(core::f32::consts::PI);
 
         // Shadow pass
-        TeapotShadow {
-            mvp: light_vp * m,
-            phantom: PhantomData,
-        }
-        .render(model.vertices(), &mut Empty::default(), &mut shadow);
+        TeapotShadow { mvp: light_vp * m }.render(
+            model.vertices(),
+            &mut Empty::default(),
+            &mut shadow,
+        );
 
         // Colour pass
         Teapot {
@@ -218,7 +216,7 @@ fn main() {
             p,
             light_pos,
             shadow: (&shadow).linear().clamped(),
-            light_vp: light_vp,
+            light_vp,
         }
         .render(model.vertices(), &mut color, &mut depth);
 
