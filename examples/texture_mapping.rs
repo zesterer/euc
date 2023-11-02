@@ -17,10 +17,6 @@ impl<'r> Pipeline<'r> for Cube<'r> {
     type Fragment = Rgba<f32>;
     type Pixel = u32;
 
-    fn aa_mode(&self) -> euc::AaMode {
-        euc::AaMode::Msaa { level: 4 }
-    }
-
     #[inline]
     fn vertex(&self, v_index: &Self::Vertex) -> ([f32; 4], Self::VertexData) {
         (
