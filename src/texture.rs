@@ -18,15 +18,19 @@ pub trait Texture<const N: usize> {
     /// by users of the texture.
     fn size(&self) -> [Self::Index; N];
 
-    /// Get the texture axis with highest contiguous access times.
+    /// Get the texture's preferred access order, if it has one.
     ///
-    /// The ordering of textures in memory can have a very significant impact on the cost of accessing them. It is
-    /// typical for textures to be ordered first in rows (i.e: a principal x axis) and then columns but this is not
-    /// always the case. This function allows the texture to signal to users what access patterns are most performant.
+    /// Texture data is generally laid out in memory in such a way that iteration over a particular axis is preferred
+    /// over others. For example, it is typical for framebuffers to be laid out in rows of columns, rather than columns
+    /// of rows. As such, it is more performant to iterate over columns and then rows to take maximum advantage of the
+    /// CPU's cache.
     ///
-    /// The default implementation is a principal axis of x, which corresponds to the most common in-memory texture layouts.
-    fn principal_axis(&self) -> usize {
-        0
+    /// You can use this function to switch between different iteration strategies to improve performance.
+    ///
+    /// In most cases, the preferred axes will be `[0, 1]` (i.e: sequential accesses to texels nearby in the x axis
+    /// will be much faster than those in the y axis).
+    fn preferred_axes(&self) -> Option<[usize; N]> {
+        None
     }
 
     /// Read a texel at the given index.
@@ -76,15 +80,19 @@ pub trait Texture<const N: usize> {
 impl<'a, T: Texture<N>, const N: usize> Texture<N> for &'a T {
     type Index = T::Index;
     type Texel = T::Texel;
-    #[inline]
+    #[inline(always)]
     fn size(&self) -> [Self::Index; N] {
         (**self).size()
     }
-    #[inline]
+    #[inline(always)]
+    fn preferred_axes(&self) -> Option<[usize; N]> {
+        (**self).preferred_axes()
+    }
+    #[inline(always)]
     fn read(&self, index: [Self::Index; N]) -> Self::Texel {
         (**self).read(index)
     }
-    #[inline]
+    #[inline(always)]
     unsafe fn read_unchecked(&self, index: [Self::Index; N]) -> Self::Texel {
         (**self).read_unchecked(index)
     }
@@ -93,15 +101,19 @@ impl<'a, T: Texture<N>, const N: usize> Texture<N> for &'a T {
 impl<'a, T: Texture<N>, const N: usize> Texture<N> for &'a mut T {
     type Index = T::Index;
     type Texel = T::Texel;
-    #[inline]
+    #[inline(always)]
     fn size(&self) -> [Self::Index; N] {
         (**self).size()
     }
-    #[inline]
+    #[inline(always)]
+    fn preferred_axes(&self) -> Option<[usize; N]> {
+        (**self).preferred_axes()
+    }
+    #[inline(always)]
     fn read(&self, index: [Self::Index; N]) -> Self::Texel {
         (**self).read(index)
     }
-    #[inline]
+    #[inline(always)]
     unsafe fn read_unchecked(&self, index: [Self::Index; N]) -> Self::Texel {
         (**self).read_unchecked(index)
     }
@@ -191,23 +203,23 @@ pub trait Target: Texture<2, Index = usize> {
 }
 
 impl<'a, T: Target> Target for &'a mut T {
-    #[inline]
+    #[inline(always)]
     unsafe fn read_exclusive_unchecked(&self, index: [Self::Index; 2]) -> Self::Texel {
         T::read_exclusive_unchecked(self, index)
     }
-    #[inline]
+    #[inline(always)]
     unsafe fn write_exclusive_unchecked(&self, index: [usize; 2], texel: Self::Texel) {
         T::write_exclusive_unchecked(self, index, texel)
     }
-    #[inline]
+    #[inline(always)]
     unsafe fn write_unchecked(&mut self, index: [usize; 2], texel: Self::Texel) {
         T::write_unchecked(self, index, texel)
     }
-    #[inline]
+    #[inline(always)]
     fn write(&mut self, index: [usize; 2], texel: Self::Texel) {
         T::write(self, index, texel);
     }
-    #[inline]
+    #[inline(always)]
     fn clear(&mut self, texel: Self::Texel) {
         T::clear(self, texel);
     }
@@ -262,6 +274,11 @@ where
     #[inline]
     fn size(&self) -> [Self::Index; 2] {
         [self.width() as usize, self.height() as usize]
+    }
+
+    #[inline]
+    fn preferred_axes(&self) -> Option<[usize; 2]> {
+        Some([0, 1])
     }
 
     #[inline]

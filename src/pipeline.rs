@@ -433,7 +433,7 @@ unsafe fn render_inner<Pipe, S, P, D>(
         }
     }
 
-    let principal_x = depth.principal_axis() == 0;
+    let principal_x = depth.preferred_axes().map_or(true, |[a, _]| a == 0);
 
     use crate::rasterizer::Blitter;
 
