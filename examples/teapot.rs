@@ -48,7 +48,7 @@ impl<'a> Pipeline for TeapotShadow<'a> {
     }
 
     #[inline(always)]
-    fn blend(&self, old: Self::Pixel, _new: Self::Fragment) {}
+    fn blend(&self, _old: Self::Pixel, _new: Self::Fragment) {}
 }
 
 struct Teapot<'a> {
@@ -87,7 +87,7 @@ impl<'a> Pipeline for Teapot<'a> {
         let light_view_pos = self.light_vp * Vec4::from_point(wpos);
         let light_view_pos = light_view_pos.xyz() / light_view_pos.w;
         (
-            (self.p * self.v * wpos).into_array(),
+            (self.p * (self.v * wpos)).into_array(),
             VertexData {
                 wpos: wpos.xyz(),
                 wnorm: wnorm.xyz(),

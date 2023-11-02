@@ -216,9 +216,15 @@ impl<'a, T: Target> Target for &'a mut T {
 /// An always-empty texture. Useful as a placeholder for an unused target.
 pub struct Empty<T>(core::marker::PhantomData<T>);
 
+impl<T> Empty<T> {
+    pub const fn new() -> Self {
+        Self(core::marker::PhantomData)
+    }
+}
+
 impl<T> Default for Empty<T> {
     fn default() -> Self {
-        Self(core::marker::PhantomData)
+        Self::new()
     }
 }
 

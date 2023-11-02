@@ -106,7 +106,7 @@ impl Rasterizer for Triangles {
             };
 
             // Ensure we didn't accidentally end up with infinities or NaNs
-            assert!(coords_to_weights
+            debug_assert!(coords_to_weights
                 .into_row_array()
                 .iter()
                 .all(|e| e.is_finite()));
@@ -117,7 +117,7 @@ impl Rasterizer for Triangles {
             // Calculate the triangle bounds as a bounding box
             let screen_min = Vec2::<usize>::from(tgt_min).map(|e| e as f32);
             let screen_max = Vec2::<usize>::from(tgt_max).map(|e| e as f32);
-            let tri_bounds_clamped = Aabr::<usize> {
+            let bounds_clamped = Aabr::<usize> {
                 min: (verts_screen.reduce(|a, b| Vec2::partial_min(a, b)) + 0.0)
                     .clamped(screen_min, screen_max)
                     .as_(),
@@ -129,15 +129,15 @@ impl Rasterizer for Triangles {
             // Calculate change in vertex weights for each pixel
             let weights_at = |p: Vec2<f32>| coords_to_weights * Vec3::new(p.x, p.y, 1.0);
             let w_hom_origin = weights_at(Vec2::zero());
-            let w_hom_dx = (weights_at(Vec2::unit_x() * 1000.0) - w_hom_origin) / 1000.0;
-            let w_hom_dy = (weights_at(Vec2::unit_y() * 1000.0) - w_hom_origin) / 1000.0;
+            let w_hom_dx = (weights_at(Vec2::unit_x() * 1000.0) - w_hom_origin) * (1.0 / 1000.0);
+            let w_hom_dy = (weights_at(Vec2::unit_y() * 1000.0) - w_hom_origin) * (1.0 / 1000.0);
 
             // First, order vertices by height
             let mut verts_by_y = verts_screen;
             verts_by_y.sort_unstable_by_key(|e| e.y as isize);
 
             // Iterate over fragment candidates within the triangle's bounding box
-            (tri_bounds_clamped.min.y..tri_bounds_clamped.max.y).for_each(|y| {
+            (bounds_clamped.min.y..bounds_clamped.max.y).for_each(|y| {
                 let Vec3 { x: a, y: b, z: c } = verts_by_y;
                 // For each of the lines, calculate the point at which our row intersects it
                 let ac = Lerp::lerp(a.x, c.x, (y as f32 - a.y) / (c.y - a.y)); // Longest side
@@ -152,11 +152,9 @@ impl Rasterizer for Triangles {
 
                 // Now we have screen-space bounds for the row. Clean it up and clamp it to the screen bounds
                 let row_range = Vec2::new(row_bounds.x.floor(), row_bounds.y.ceil()).map2(
-                    Vec2::new(tri_bounds_clamped.min.x, tri_bounds_clamped.max.x),
+                    Vec2::new(bounds_clamped.min.x, bounds_clamped.max.x),
                     |e, b| {
-                        if e >= tri_bounds_clamped.min.x as f32
-                            && e < tri_bounds_clamped.max.x as f32
-                        {
+                        if e >= bounds_clamped.min.x as f32 && e < bounds_clamped.max.x as f32 {
                             e as usize
                         } else {
                             b
@@ -165,7 +163,7 @@ impl Rasterizer for Triangles {
                 );
 
                 // Stupid version
-                //let row_range = Vec2::new(tri_bounds_clamped.min.x, tri_bounds_clamped.max.x);
+                //let row_range = Vec2::new(bounds_clamped.min.x, bounds_clamped.max.x);
 
                 // Find the barycentric weights for the start of this row
                 let mut w_hom = w_hom_origin + w_hom_dy * y as f32 + w_hom_dx * row_range.x as f32;
@@ -180,15 +178,13 @@ impl Rasterizer for Triangles {
                         // Calculate the interpolated z coordinate for the depth target
                         let z: f32 = verts_hom.map(|v| v.z).dot(w_unbalanced);
 
-                        if blitter.test_fragment([x, y], z) {
-                            // Don't use `.contains(&z)`, it isn't inclusive
-                            if coordinate_mode
-                                .z_clip_range
-                                .clone()
-                                .map_or(true, |clip_range| {
-                                    z >= clip_range.start && z <= clip_range.end
-                                })
-                            {
+                        // Don't use `.contains(&z)`, it isn't inclusive
+                        if coordinate_mode
+                            .z_clip_range
+                            .clone()
+                            .map_or(true, |clip| clip.start <= z && z <= clip.end)
+                        {
+                            if blitter.test_fragment([x, y], z) {
                                 let get_v_data = |[x, y]: [f32; 2]| {
                                     let w_hom = w_hom_origin + w_hom_dy * y + w_hom_dx * x;
 
