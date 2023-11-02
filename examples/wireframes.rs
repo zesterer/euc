@@ -8,15 +8,15 @@ struct Teapot {
     p: Mat4<f32>,
 }
 
-impl Pipeline for Teapot {
-    type Vertex<'v> = wavefront::Vertex<'v>;
+impl<'r> Pipeline<'r> for Teapot {
+    type Vertex = wavefront::Vertex<'r>;
     type VertexData = Unit;
     type Primitives = LineTriangleList;
     type Fragment = Rgba<f32>;
     type Pixel = u32;
 
     #[inline(always)]
-    fn vertex(&self, vertex: &Self::Vertex<'_>) -> ([f32; 4], Self::VertexData) {
+    fn vertex(&self, vertex: &Self::Vertex) -> ([f32; 4], Self::VertexData) {
         let wpos = self.m * Vec4::from_point(Vec3::from(vertex.position()));
 
         ((self.p * (self.v * wpos)).into_array(), Unit)

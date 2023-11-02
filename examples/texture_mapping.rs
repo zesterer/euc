@@ -3,22 +3,26 @@ use image::RgbaImage;
 use minifb::{Key, Window, WindowOptions};
 use vek::{Mat4, Rgba, Vec2, Vec3, Vec4};
 
-struct Cube<'a> {
+struct Cube<'r> {
     mvp: Mat4<f32>,
-    positions: &'a [Vec4<f32>],
-    uvs: &'a [Vec2<f32>],
-    sampler: &'a Nearest<RgbaImage>,
+    positions: &'r [Vec4<f32>],
+    uvs: &'r [Vec2<f32>],
+    sampler: &'r Nearest<RgbaImage>,
 }
 
-impl<'a> Pipeline for Cube<'a> {
-    type Vertex<'v> = usize;
+impl<'r> Pipeline<'r> for Cube<'r> {
+    type Vertex = usize;
     type VertexData = Vec2<f32>;
     type Primitives = TriangleList;
     type Fragment = Rgba<f32>;
     type Pixel = u32;
 
+    fn aa_mode(&self) -> euc::AaMode {
+        euc::AaMode::Msaa { level: 4 }
+    }
+
     #[inline]
-    fn vertex(&self, v_index: &Self::Vertex<'_>) -> ([f32; 4], Self::VertexData) {
+    fn vertex(&self, v_index: &Self::Vertex) -> ([f32; 4], Self::VertexData) {
         (
             (self.mvp * self.positions[*v_index]).into_array(),
             self.uvs[*v_index],

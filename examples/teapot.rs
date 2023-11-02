@@ -10,8 +10,8 @@ struct TeapotShadow {
     mvp: Mat4<f32>,
 }
 
-impl Pipeline for TeapotShadow {
-    type Vertex<'v> = wavefront::Vertex<'v>;
+impl<'r> Pipeline<'r> for TeapotShadow {
+    type Vertex = wavefront::Vertex<'r>;
     type VertexData = f32;
     type Primitives = TriangleList;
     type Fragment = Unit;
@@ -33,7 +33,7 @@ impl Pipeline for TeapotShadow {
     }
 
     #[inline(always)]
-    fn vertex(&self, vertex: &Self::Vertex<'_>) -> ([f32; 4], Self::VertexData) {
+    fn vertex(&self, vertex: &Self::Vertex) -> ([f32; 4], Self::VertexData) {
         (
             (self.mvp * Vec4::from_point(Vec3::from(vertex.position()))).into_array(),
             0.0,
@@ -49,12 +49,12 @@ impl Pipeline for TeapotShadow {
     fn blend(&self, _old: Self::Pixel, _new: Self::Fragment) {}
 }
 
-struct Teapot<'a> {
+struct Teapot<'r> {
     m: Mat4<f32>,
     v: Mat4<f32>,
     p: Mat4<f32>,
     light_pos: Vec3<f32>,
-    shadow: Clamped<Linear<&'a Buffer2d<f32>>>,
+    shadow: Clamped<Linear<&'r Buffer2d<f32>>>,
     light_vp: Mat4<f32>,
 }
 
@@ -65,8 +65,8 @@ struct VertexData {
     light_view_pos: Vec3<f32>,
 }
 
-impl<'a> Pipeline for Teapot<'a> {
-    type Vertex<'v> = wavefront::Vertex<'v>;
+impl<'r> Pipeline<'r> for Teapot<'r> {
+    type Vertex = wavefront::Vertex<'r>;
     type VertexData = VertexData;
     type Primitives = TriangleList;
     type Fragment = Rgba<f32>;
@@ -78,7 +78,7 @@ impl<'a> Pipeline for Teapot<'a> {
     }
 
     #[inline(always)]
-    fn vertex(&self, vertex: &Self::Vertex<'_>) -> ([f32; 4], Self::VertexData) {
+    fn vertex(&self, vertex: &Self::Vertex) -> ([f32; 4], Self::VertexData) {
         let wpos = self.m * Vec4::from_point(Vec3::from(vertex.position()));
         let wnorm = self.m * Vec4::from_direction(-Vec3::from(vertex.normal().unwrap()));
 

@@ -6,15 +6,15 @@ struct Cube {
     mvp: Mat4<f32>,
 }
 
-impl Pipeline for Cube {
-    type Vertex<'v> = (Vec4<f32>, Rgba<f32>);
+impl<'r> Pipeline<'r> for Cube {
+    type Vertex = (Vec4<f32>, Rgba<f32>);
     type VertexData = Rgba<f32>;
     type Primitives = TriangleList;
     type Pixel = u32;
     type Fragment = Rgba<f32>;
 
     #[inline(always)]
-    fn vertex(&self, (pos, color): &Self::Vertex<'_>) -> ([f32; 4], Self::VertexData) {
+    fn vertex(&self, (pos, color): &Self::Vertex) -> ([f32; 4], Self::VertexData) {
         ((self.mvp * *pos).into_array(), *color)
     }
 

@@ -14,8 +14,8 @@
 // You can add fields to this type, like uniforms in traditional GPU shader programs.
 struct Triangle;
 
-impl Pipeline for Triangle {
-    type Vertex<'v> = [f32; 2]; // Each vertex has an x and y component
+impl<'r> Pipeline<'r> for Triangle {
+    type Vertex = [f32; 2]; // Each vertex has an x and y component
     type VertexData = Unit; // No data is passed from the vertex shader to the fragment shader
     type Primitives = TriangleList; // Our vertices come in the form of a list of triangles
     type Fragment = [u8; 3]; // Each fragment is 3 bytes: red, green, and blue

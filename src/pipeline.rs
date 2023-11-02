@@ -156,8 +156,8 @@ impl Default for CoordinateMode {
 ///
 /// Additional methods such as [`Pipeline::depth_mode`], [Pipeline::`cull_mode`], etc. may be implemented to customize
 /// the behaviour of the pipeline even further.
-pub trait Pipeline: Sized {
-    type Vertex<'a>;
+pub trait Pipeline<'r>: Sized {
+    type Vertex;
     type VertexData: Clone + WeightedSum + Send + Sync;
     type Primitives: PrimitiveKind<Self::VertexData>;
     type Fragment: Clone + WeightedSum;
@@ -200,7 +200,7 @@ pub trait Pipeline: Sized {
     /// [`Pipeline::VertexData`] to be interpolated and passed to the fragment shader.
     ///
     /// This stage is executed at the beginning of pipeline execution.
-    fn vertex(&self, vertex: &Self::Vertex<'_>) -> ([f32; 4], Self::VertexData);
+    fn vertex(&self, vertex: &Self::Vertex) -> ([f32; 4], Self::VertexData);
 
     /// Turn a primitive into many primitives.
     ///
@@ -233,11 +233,11 @@ pub trait Pipeline: Sized {
     /// Render a stream of vertices to given provided pixel target and depth target using the rasterizer.
     ///
     /// **Do not implement this method**
-    fn render<'a, S, V, P, D>(&self, vertices: S, pixel: &mut P, depth: &mut D)
+    fn render<S, V, P, D>(&self, vertices: S, pixel: &mut P, depth: &mut D)
     where
         Self: Send + Sync,
         S: IntoIterator<Item = V>,
-        V: Borrow<Self::Vertex<'a>>,
+        V: Borrow<Self::Vertex>,
         P: Target<Texel = Self::Pixel> + Send + Sync,
         D: Target<Texel = f32> + Send + Sync,
     {
@@ -290,7 +290,7 @@ pub trait Pipeline: Sized {
 }
 
 #[cfg(feature = "par")]
-fn render_par<Pipe, S, P, D>(
+fn render_par<'r, Pipe, S, P, D>(
     pipeline: &Pipe,
     fetch_vertex: S,
     tgt_size: [usize; 2],
@@ -298,7 +298,7 @@ fn render_par<Pipe, S, P, D>(
     depth: &mut D,
     msaa_level: usize,
 ) where
-    Pipe: Pipeline + Send + Sync,
+    Pipe: Pipeline<'r> + Send + Sync,
     S: Iterator<Item = ([f32; 4], Pipe::VertexData)>,
     P: Target<Texel = Pipe::Pixel> + Send + Sync,
     D: Target<Texel = f32> + Send + Sync,
@@ -312,7 +312,7 @@ fn render_par<Pipe, S, P, D>(
     let row = AtomicUsize::new(0);
 
     const FRAGMENTS_PER_GROUP: usize = 20_000; // Magic number, maybe make this configurable?
-    let group_rows = FRAGMENTS_PER_GROUP * (msaa_level + 1) / tgt_size[0].max(1);
+    let group_rows = FRAGMENTS_PER_GROUP * (1 << msaa_level) / tgt_size[0].max(1);
     let needed_threads = (tgt_size[1] / group_rows).min(threads);
 
     let vertices = &vertices;
@@ -353,7 +353,7 @@ fn render_par<Pipe, S, P, D>(
 }
 
 #[cfg(not(feature = "par"))]
-fn render_seq<Pipe, S, P, D>(
+fn render_seq<'r, Pipe, S, P, D>(
     pipeline: &Pipe,
     fetch_vertex: S,
     tgt_size: [usize; 2],
@@ -361,7 +361,7 @@ fn render_seq<Pipe, S, P, D>(
     depth: &mut D,
     msaa_level: usize,
 ) where
-    Pipe: Pipeline + Send + Sync,
+    Pipe: Pipeline<'r> + Send + Sync,
     S: Iterator<Item = ([f32; 4], Pipe::VertexData)>,
     P: Target<Texel = Pipe::Pixel> + Send + Sync,
     D: Target<Texel = f32> + Send + Sync,
@@ -381,7 +381,7 @@ fn render_seq<Pipe, S, P, D>(
     }
 }
 
-unsafe fn render_inner<Pipe, S, P, D>(
+unsafe fn render_inner<'r, Pipe, S, P, D>(
     pipeline: &Pipe,
     fetch_vertex: S,
     (tgt_min, tgt_max): ([usize; 2], [usize; 2]),
@@ -390,7 +390,7 @@ unsafe fn render_inner<Pipe, S, P, D>(
     depth: &D,
     msaa_level: usize,
 ) where
-    Pipe: Pipeline + Send + Sync,
+    Pipe: Pipeline<'r> + Send + Sync,
     S: Iterator<Item = ([f32; 4], Pipe::VertexData)>,
     P: Target<Texel = Pipe::Pixel> + Send + Sync,
     D: Target<Texel = f32> + Send + Sync,
@@ -437,7 +437,7 @@ unsafe fn render_inner<Pipe, S, P, D>(
 
     use crate::rasterizer::Blitter;
 
-    struct BlitterImpl<'a, Pipe: Pipeline, P, D> {
+    struct BlitterImpl<'a, 'r, Pipe: Pipeline<'r>, P, D> {
         write_pixels: bool,
         depth_mode: DepthMode,
 
@@ -454,9 +454,9 @@ unsafe fn render_inner<Pipe, S, P, D>(
         msaa_buf: Option<Buffer2d<(u64, Option<Pipe::Fragment>)>>,
     }
 
-    impl<'a, Pipe, P, D> BlitterImpl<'a, Pipe, P, D>
+    impl<'a, 'r, Pipe, P, D> BlitterImpl<'a, 'r, Pipe, P, D>
     where
-        Pipe: Pipeline + Send + Sync,
+        Pipe: Pipeline<'r> + Send + Sync,
         P: Target<Texel = Pipe::Pixel> + Send + Sync,
         D: Target<Texel = f32> + Send + Sync,
     {
@@ -484,9 +484,9 @@ unsafe fn render_inner<Pipe, S, P, D>(
         }
     }
 
-    impl<'a, Pipe, P, D> Blitter<Pipe::VertexData> for BlitterImpl<'a, Pipe, P, D>
+    impl<'a, 'r, Pipe, P, D> Blitter<Pipe::VertexData> for BlitterImpl<'a, 'r, Pipe, P, D>
     where
-        Pipe: Pipeline + Send + Sync,
+        Pipe: Pipeline<'r> + Send + Sync,
         P: Target<Texel = Pipe::Pixel> + Send + Sync,
         D: Target<Texel = f32> + Send + Sync,
     {
