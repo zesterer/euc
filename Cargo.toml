@@ -1,13 +1,13 @@
 [package]
 name = "euc"
-version = "0.5.2"
+version = "0.6.0"
 description = "A software rendering crate that lets you write shaders with Rust"
 authors = ["Joshua Barretto <joshua.s.barretto@gmail.com>", "Martin Sandfuchs <martin@cluginbuehl.ch>"]
 license = "Apache-2.0 AND MIT"
 repository = "https://github.com/zesterer/euc"
 readme = "README.md"
 edition = "2018"
-keywords = ["renderer", "3D", "graphics", "raster"]
+keywords = ["renderer", "3D", "graphics", "rasterizer", "shader"]
 exclude = [
 	"/misc",
 	"/misc/*",
@@ -32,7 +32,7 @@ par = ["std", "num_cpus", "fxhash"]
 micromath = ["dep:micromath"]
 
 [dev-dependencies]
-vek = { version = "0.16", features = ["rgb"] }
+vek = { version = "0.16", default-features = false, features = ["rgba"] }
 minifb = "0.20"
 wavefront = "0.2"
 criterion = "0.3.3"

@@ -63,9 +63,9 @@ thread-based parallelism to accelerate rendering.
 
 - Write shaders in Rust (vertex, geometry, fragment and blend shaders)
 - Multithreading support for parallel rendering acceleration
-- Many supported primitives (triangles, lines, points, etc.)
-- Textures and texture samplers
-- Customisable coordinate space
+- Many supported primitives and vertex formats (triangle lists, line pairs, etc.)
+- N-dimensional textures and samplers (including support for filtering, clamping, tiling, mirroring, etc.)
+- Customisable coordinate space (choose compatibility with OpenGL, Vulkan, DirectX, or Metal)
 - Built-in support for index buffers
 
 ## Why?
