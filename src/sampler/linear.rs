@@ -28,9 +28,6 @@ where
 
     #[inline(always)]
     fn sample(&self, index: [Self::Index; 2]) -> Self::Sample {
-        assert!(index[0] <= 1.0, "{:?}", index);
-        assert!(index[1] <= 1.0, "{:?}", index);
-
         let size = self.raw_texture().size();
         let size_f32 = size.map(|e| e as f32);
         // Index in texture coordinates
@@ -43,14 +40,14 @@ where
         // Find interpolation values
         let fract = index_tex.map(|e| e.fract());
 
-        assert!(
+        debug_assert!(
             posi[0] < size[0],
             "pos: {:?}, sz: {:?}, idx: {:?}",
             posi,
             size,
             index
         );
-        assert!(
+        debug_assert!(
             posi[1] < size[1],
             "pos: {:?}, sz: {:?}, idx: {:?}",
             posi,

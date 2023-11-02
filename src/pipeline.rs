@@ -10,6 +10,7 @@ use micromath::F32Ext;
 
 /// Defines how a [`Pipeline`] will interact with the depth target.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub struct DepthMode {
     /// The test, if any, that occurs when comparing the depth of the new fragment with that of the current depth.
     pub test: Option<Ordering>,
@@ -53,6 +54,7 @@ impl DepthMode {
 
 /// Defines how a [`Pipeline`] will interact with the pixel target.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub struct PixelMode {
     /// Whether the fragment's pixel should be written to the pixel target.
     pub write: bool,
@@ -89,6 +91,7 @@ pub enum YAxisDirection {
 }
 
 /// The configuration of the coordinate system used by a pipeline.
+#[non_exhaustive]
 pub struct CoordinateMode {
     pub handedness: Handedness,
     pub y_axis_direction: YAxisDirection,
@@ -97,6 +100,7 @@ pub struct CoordinateMode {
 
 /// The anti-aliasing mode used by a pipeline.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum AaMode {
     /// No anti-aliasing.
     None,

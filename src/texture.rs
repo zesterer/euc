@@ -75,6 +75,19 @@ pub trait Texture<const N: usize> {
             phantom: PhantomData,
         }
     }
+
+    /// Map the texels of this texture to another type using a mapping function.
+    fn map<F, U>(self, f: F) -> Map<Self, F, U>
+    where
+        F: Fn(Self::Texel) -> U,
+        Self: Sized,
+    {
+        Map {
+            tex: self,
+            f,
+            phantom: PhantomData,
+        }
+    }
 }
 
 impl<'a, T: Texture<N>, const N: usize> Texture<N> for &'a T {
@@ -116,6 +129,47 @@ impl<'a, T: Texture<N>, const N: usize> Texture<N> for &'a mut T {
     #[inline(always)]
     unsafe fn read_unchecked(&self, index: [Self::Index; N]) -> Self::Texel {
         (**self).read_unchecked(index)
+    }
+}
+
+#[derive(Debug)]
+pub struct Map<T, F, U> {
+    tex: T,
+    f: F,
+    phantom: PhantomData<U>,
+}
+
+impl<T: Copy, F: Copy, U> Copy for Map<T, F, U> {}
+impl<T: Clone, F: Clone, U> Clone for Map<T, F, U> {
+    fn clone(&self) -> Self {
+        Self {
+            tex: self.tex.clone(),
+            f: self.f.clone(),
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<'a, T: Texture<N>, U: Clone, F: Fn(T::Texel) -> U, const N: usize> Texture<N>
+    for Map<T, F, U>
+{
+    type Index = T::Index;
+    type Texel = U;
+    #[inline(always)]
+    fn size(&self) -> [Self::Index; N] {
+        self.tex.size()
+    }
+    #[inline(always)]
+    fn preferred_axes(&self) -> Option<[usize; N]> {
+        self.tex.preferred_axes()
+    }
+    #[inline(always)]
+    fn read(&self, index: [Self::Index; N]) -> Self::Texel {
+        (self.f)(self.tex.read(index))
+    }
+    #[inline(always)]
+    unsafe fn read_unchecked(&self, index: [Self::Index; N]) -> Self::Texel {
+        (self.f)(self.tex.read_unchecked(index))
     }
 }
 

@@ -1,16 +1,15 @@
-use euc::{Buffer2d, Nearest, Pipeline, Sampler, Target, Texture, TriangleList};
-use image::RgbaImage;
+use euc::{Buffer2d, Pipeline, Sampler, Target, Texture, TriangleList};
 use minifb::{Key, Window, WindowOptions};
 use vek::{Mat4, Rgba, Vec2, Vec3, Vec4};
 
-struct Cube<'r> {
+struct Cube<'r, S> {
     mvp: Mat4<f32>,
     positions: &'r [Vec4<f32>],
     uvs: &'r [Vec2<f32>],
-    sampler: &'r Nearest<RgbaImage>,
+    sampler: S,
 }
 
-impl<'r> Pipeline<'r> for Cube<'r> {
+impl<'r, S: Sampler<2, Index = f32, Sample = Rgba<f32>>> Pipeline<'r> for Cube<'r, S> {
     type Vertex = usize;
     type VertexData = Vec2<f32>;
     type Primitives = TriangleList;
@@ -26,8 +25,8 @@ impl<'r> Pipeline<'r> for Cube<'r> {
     }
 
     #[inline]
-    fn fragment(&self, v_uv: Self::VertexData) -> Self::Fragment {
-        Rgba::from(self.sampler.sample(v_uv.into_array()).0).map(|e: u8| e as f32)
+    fn fragment(&self, uv: Self::VertexData) -> Self::Fragment {
+        self.sampler.sample(uv.into_array())
     }
 
     fn blend(&self, _: Self::Pixel, color: Self::Fragment) -> Self::Pixel {
@@ -41,6 +40,7 @@ fn main() {
     let mut color = Buffer2d::fill([w, h], 0);
     let mut depth = Buffer2d::fill([w, h], 1.0);
 
+    // Vertex positions
     let positions = [
         // z = 1
         Vec4::new(-1.0, -1.0, 1.0, 1.0),
@@ -73,6 +73,7 @@ fn main() {
         Vec4::new(-1.0, 1.0, -1.0, 1.0),
         Vec4::new(-1.0, 1.0, 1.0, 1.0),
     ];
+    // Vertex texture coordinates
     let uvs = [
         // z = 1
         Vec2::new(0.0, 1.0),
@@ -106,14 +107,14 @@ fn main() {
         Vec2::new(1.0, 1.0),
     ];
 
-    let texture = match image::open("examples/data/rust.png") {
-        Ok(image) => image.to_rgba8(),
-        Err(err) => {
-            eprintln!("{}", err);
-            return;
-        }
-    };
-    let sampler = texture.nearest();
+    // Load a texture from disk
+    let texture = image::open("examples/data/rust.png").unwrap().to_rgba8();
+
+    // Create a sampler from the texture. Because the underlying texture is a bitmap, we map its texels to a
+    // floating-point color. From here, we allow it to be bilinearly interpolated by the shader.
+    let sampler = texture
+        .map(|pixel| Rgba::from(pixel.0).map(|e: u8| e as f32))
+        .linear();
 
     let mut win = Window::new("Texture Mapping", w, h, WindowOptions::default()).unwrap();
 
