@@ -26,6 +26,37 @@ unsafe impl<T: Send, const N: usize> Send for Buffer<T, N> {}
 unsafe impl<T: Sync, const N: usize> Sync for Buffer<T, N> {}
 
 impl<T, const N: usize> Buffer<T, N> {
+    /// Copy the texels of an existing [`Texture`] into a new [`Buffer`].
+    ///
+    /// This is useful if the original texture has slow access times or isn't usable as a render target.
+    pub fn from_texture<U: Texture<N, Index = usize, Texel = T>>(tex: &U) -> Self {
+        let tex_size = tex.size();
+        let mut idx = [0; N];
+        let iter = core::iter::once([0; N]).chain(core::iter::from_fn(move || {
+            let mut i = 0;
+            loop {
+                if i == N {
+                    break None;
+                } else if idx[i] + 1 == tex_size[i] {
+                    i += 1;
+                } else {
+                    idx[..i].iter_mut().for_each(|x| *x = 0);
+                    idx[i] += 1;
+                    break Some(idx);
+                }
+            }
+        }));
+
+        Self {
+            size: tex_size,
+            items: unsafe {
+                iter.map(|idx| UnsafeCell::new(tex.read_unchecked(idx)))
+                    .collect::<Vec<_>>()
+                    .into_boxed_slice()
+            },
+        }
+    }
+
     /// Create a new buffer with the given size, filled with duplicates of the given element.
     #[inline]
     pub fn fill(size: [usize; N], item: T) -> Self
@@ -52,15 +83,20 @@ impl<T, const N: usize> Buffer<T, N> {
     }
 
     /// Convert the given index into a linear index that can be used to index into the raw data of this buffer.
-    #[inline]
+    #[inline(always)]
     pub fn linear_index(&self, index: [usize; N]) -> usize {
-        let mut idx = 0;
-        let mut factor = 1;
-        (0..N).for_each(|i| {
-            idx += index[i] * factor;
-            factor *= self.size[i];
-        });
-        idx
+        // Special-case
+        if N == 2 {
+            index[0] + self.size[0] * index[1]
+        } else {
+            let mut idx = 0;
+            let mut factor = 1;
+            (0..N).for_each(|i| {
+                idx += index[i] * factor;
+                factor *= self.size[i];
+            });
+            idx
+        }
     }
 
     /// View this buffer as a linear slice of elements.
@@ -99,7 +135,7 @@ impl<T, const N: usize> Buffer<T, N> {
     /// # Safety
     ///
     /// Undefined behaviour will occur if the index is not within bounds.
-    #[inline]
+    #[inline(always)]
     pub unsafe fn get_unchecked_mut(&mut self, index: [usize; N]) -> &mut T {
         let idx = self.linear_index(index);
         self.items.get_unchecked_mut(idx).get_mut()
@@ -136,7 +172,7 @@ impl<T: Clone, const N: usize> Texture<N> for Buffer<T, N> {
         unsafe { (*item.get()).clone() }
     }
 
-    #[inline]
+    #[inline(always)]
     unsafe fn read_unchecked(&self, index: [Self::Index; N]) -> Self::Texel {
         let item = self.items.get_unchecked(self.linear_index(index));
         // SAFETY: Invariants can only be violated by `write_exclusive_unchecked`
@@ -145,14 +181,14 @@ impl<T: Clone, const N: usize> Texture<N> for Buffer<T, N> {
 }
 
 impl<T: Clone> Target for Buffer<T, 2> {
-    #[inline]
+    #[inline(always)]
     unsafe fn read_exclusive_unchecked(&self, x: usize, y: usize) -> Self::Texel {
         let item = self.items.get_unchecked(self.linear_index2(x, y));
         // SAFETY: Invariants can only be violated by `write_exclusive_unchecked`
         unsafe { (*item.get()).clone() }
     }
 
-    #[inline]
+    #[inline(always)]
     unsafe fn write_exclusive_unchecked(&self, x: usize, y: usize, texel: Self::Texel) {
         let item = self.items.get_unchecked(self.linear_index2(x, y));
         // This is safe to do provided the caller has guaranteed exclusive access to the texels being written to, as
@@ -162,13 +198,13 @@ impl<T: Clone> Target for Buffer<T, 2> {
         }
     }
 
-    #[inline]
+    #[inline(always)]
     unsafe fn write_unchecked(&mut self, x: usize, y: usize, texel: Self::Texel) {
         let idx = self.linear_index2(x, y);
         *self.items.get_unchecked_mut(idx) = UnsafeCell::new(texel);
     }
 
-    #[inline]
+    #[inline(always)]
     fn write(&mut self, x: usize, y: usize, texel: Self::Texel) {
         let idx = self.linear_index2(x, y);
         self.items[idx] = UnsafeCell::new(texel);

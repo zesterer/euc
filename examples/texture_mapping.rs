@@ -110,6 +110,10 @@ fn main() {
     // Load a texture from disk
     let texture = image::open("examples/data/rust.png").unwrap().to_rgba8();
 
+    // We can use the original texture when renderering, but `image::ImageBuffer` is slow to sample, so we convert it
+    // to euc's buffer types.
+    let texture = Buffer2d::from_texture(&texture);
+
     // Create a sampler from the texture. Because the underlying texture is a bitmap, we map its texels to a
     // floating-point color. From here, we allow it to be bilinearly interpolated by the shader.
     let sampler = texture

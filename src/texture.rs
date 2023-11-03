@@ -301,7 +301,7 @@ impl<T> Default for Empty<T> {
 impl<T: Clone, const N: usize> Texture<N> for Empty<T> {
     type Index = usize;
     type Texel = T;
-    #[inline]
+    #[inline(always)]
     fn size(&self) -> [Self::Index; N] {
         [0; N]
     }
@@ -312,11 +312,11 @@ impl<T: Clone, const N: usize> Texture<N> for Empty<T> {
 }
 
 impl<T: Clone + Default> Target for Empty<T> {
-    #[inline]
+    #[inline(always)]
     unsafe fn read_exclusive_unchecked(&self, _: usize, _: usize) -> Self::Texel {
         T::default()
     }
-    #[inline]
+    #[inline(always)]
     unsafe fn write_exclusive_unchecked(&self, _: usize, _: usize, _: Self::Texel) {}
 }
 
@@ -329,17 +329,17 @@ where
     type Index = usize;
     type Texel = P;
 
-    #[inline]
+    #[inline(always)]
     fn size(&self) -> [Self::Index; 2] {
         [self.width() as usize, self.height() as usize]
     }
 
-    #[inline]
+    #[inline(always)]
     fn preferred_axes(&self) -> Option<[usize; 2]> {
         Some([0, 1])
     }
 
-    #[inline]
+    #[inline(always)]
     fn read(&self, [x, y]: [Self::Index; 2]) -> Self::Texel {
         self.get_pixel(x as u32, y as u32).clone()
     }
