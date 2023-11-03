@@ -1,5 +1,5 @@
 use crate::texture::{Target, Texture};
-use alloc::vec::Vec;
+use alloc::{boxed::Box, vec::Vec};
 use core::cell::UnsafeCell;
 
 /// A generic 1-dimensional buffer that may be used as a texture.
@@ -15,11 +15,15 @@ pub type Buffer3d<T> = Buffer<T, 3>;
 pub type Buffer4d<T> = Buffer<T, 4>;
 
 /// A generic N-dimensional buffer that may be used both as a texture and as a render target.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Debug)]
 pub struct Buffer<T, const N: usize> {
+    items: Box<[UnsafeCell<T>]>,
     size: [usize; N],
-    items: Vec<T>,
 }
+
+// SAFETY: Same behaviour as a slice upheld
+unsafe impl<T: Send, const N: usize> Send for Buffer<T, N> {}
+unsafe impl<T: Sync, const N: usize> Sync for Buffer<T, N> {}
 
 impl<T, const N: usize> Buffer<T, N> {
     /// Create a new buffer with the given size, filled with duplicates of the given element.
@@ -40,7 +44,10 @@ impl<T, const N: usize> Buffer<T, N> {
         (0..N).for_each(|i| len = len.checked_mul(size[i]).unwrap());
         Self {
             size,
-            items: (0..len).map(|_| f()).collect(),
+            items: (0..len)
+                .map(|_| UnsafeCell::new(f()))
+                .collect::<Vec<_>>()
+                .into_boxed_slice(),
         }
     }
 
@@ -59,13 +66,15 @@ impl<T, const N: usize> Buffer<T, N> {
     /// View this buffer as a linear slice of elements.
     #[inline]
     pub fn raw(&self) -> &[T] {
-        &self.items
+        // SAFETY: Only `write_exclusive_unchecked` can violate the invariants
+        unsafe { core::slice::from_raw_parts(self.items.as_ptr() as _, self.items.len()) }
     }
 
     /// View this buffer as a linear mutable slice of elements.
     #[inline]
     pub fn raw_mut(&mut self) -> &mut [T] {
-        &mut self.items
+        // SAFETY: We have &mut access
+        unsafe { core::slice::from_raw_parts_mut(self.items.as_mut_ptr() as _, self.items.len()) }
     }
 
     /// Get a mutable reference to the item at the given index.
@@ -77,7 +86,7 @@ impl<T, const N: usize> Buffer<T, N> {
     pub fn get_mut(&mut self, index: [usize; N]) -> &mut T {
         let idx = self.linear_index(index);
         match self.items.get_mut(idx) {
-            Some(item) => item,
+            Some(item) => item.get_mut(),
             None => panic!(
                 "Attempted to read buffer of size {:?} at out-of-bounds location {:?}",
                 self.size, index
@@ -93,7 +102,14 @@ impl<T, const N: usize> Buffer<T, N> {
     #[inline]
     pub unsafe fn get_unchecked_mut(&mut self, index: [usize; N]) -> &mut T {
         let idx = self.linear_index(index);
-        self.items.get_unchecked_mut(idx)
+        self.items.get_unchecked_mut(idx).get_mut()
+    }
+}
+
+impl<T> Buffer<T, 2> {
+    #[inline]
+    pub(crate) fn linear_index2(&self, x: usize, y: usize) -> usize {
+        y * self.size[0] + x
     }
 }
 
@@ -109,59 +125,59 @@ impl<T: Clone, const N: usize> Texture<N> for Buffer<T, N> {
 
     #[inline]
     fn read(&self, index: [Self::Index; N]) -> Self::Texel {
-        self.items
-            .get(self.linear_index(index))
-            .unwrap_or_else(|| {
-                panic!(
-                    "Attempted to read buffer of size {:?} at out-of-bounds location {:?}",
-                    self.size(),
-                    index
-                )
-            })
-            .clone()
+        let item = self.items.get(self.linear_index(index)).unwrap_or_else(|| {
+            panic!(
+                "Attempted to read buffer of size {:?} at out-of-bounds location {:?}",
+                self.size(),
+                index
+            )
+        });
+        // SAFETY: Invariants can only be violated by `write_exclusive_unchecked`
+        unsafe { (*item.get()).clone() }
     }
 
     #[inline]
     unsafe fn read_unchecked(&self, index: [Self::Index; N]) -> Self::Texel {
-        self.items.get_unchecked(self.linear_index(index)).clone()
+        let item = self.items.get_unchecked(self.linear_index(index));
+        // SAFETY: Invariants can only be violated by `write_exclusive_unchecked`
+        unsafe { (*item.get()).clone() }
     }
 }
 
 impl<T: Clone> Target for Buffer<T, 2> {
     #[inline]
-    unsafe fn read_exclusive_unchecked(&self, index: [Self::Index; 2]) -> Self::Texel {
-        // This is safe to do (provided the caller has exclusive access to this buffer) because `Vec` internally uses
-        // a `RawVec`, which represents its internal buffer using raw pointers. Ergo, no other references to the items
-        // exist and so this does not break aliasing rules.
-        let item =
-            self.items.get_unchecked(self.linear_index(index)) as *const _ as *const UnsafeCell<T>;
-        (&*((&*item).get())).clone()
+    unsafe fn read_exclusive_unchecked(&self, x: usize, y: usize) -> Self::Texel {
+        let item = self.items.get_unchecked(self.linear_index2(x, y));
+        // SAFETY: Invariants can only be violated by `write_exclusive_unchecked`
+        unsafe { (*item.get()).clone() }
     }
 
     #[inline]
-    unsafe fn write_exclusive_unchecked(&self, index: [usize; 2], texel: Self::Texel) {
-        // This is safe to do (provided the caller has exclusive access to this buffer) because `Vec` internally uses
-        // a `RawVec`, which represents its internal buffer using raw pointers. Ergo, no other references to the items
-        // exist and so this does not break aliasing rules.
-        let item =
-            self.items.get_unchecked(self.linear_index(index)) as *const _ as *const UnsafeCell<T>;
-        *(&*item).get() = texel;
+    unsafe fn write_exclusive_unchecked(&self, x: usize, y: usize, texel: Self::Texel) {
+        let item = self.items.get_unchecked(self.linear_index2(x, y));
+        // This is safe to do provided the caller has guaranteed exclusive access to the texels being written to, as
+        // per the contractual obligations of this method.
+        unsafe {
+            item.get().write(texel);
+        }
     }
 
     #[inline]
-    unsafe fn write_unchecked(&mut self, index: [usize; 2], texel: Self::Texel) {
-        let idx = self.linear_index(index);
-        *self.items.get_unchecked_mut(idx) = texel;
+    unsafe fn write_unchecked(&mut self, x: usize, y: usize, texel: Self::Texel) {
+        let idx = self.linear_index2(x, y);
+        *self.items.get_unchecked_mut(idx) = UnsafeCell::new(texel);
     }
 
     #[inline]
-    fn write(&mut self, index: [usize; 2], texel: Self::Texel) {
-        let idx = self.linear_index(index);
-        self.items[idx] = texel;
+    fn write(&mut self, x: usize, y: usize, texel: Self::Texel) {
+        let idx = self.linear_index2(x, y);
+        self.items[idx] = UnsafeCell::new(texel);
     }
 
     #[inline]
     fn clear(&mut self, texel: Self::Texel) {
-        self.items.iter_mut().for_each(|item| *item = texel.clone());
+        self.items
+            .iter_mut()
+            .for_each(|item| *item = UnsafeCell::new(texel.clone()));
     }
 }

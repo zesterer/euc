@@ -1,27 +1,42 @@
 use core::ops::{Add, Mul};
 
 pub trait WeightedSum: Sized {
-    fn weighted_sum(values: &[Self], weights: &[f32]) -> Self;
+    fn weighted_sum<const N: usize>(values: [Self; N], weights: [f32; N]) -> Self;
+    fn weighted_sum2(v0: Self, v1: Self, w0: f32, w1: f32) -> Self {
+        Self::weighted_sum([v0, v1], [w0, w1])
+    }
+    fn weighted_sum3(v0: Self, v1: Self, v2: Self, w0: f32, w1: f32, w2: f32) -> Self {
+        Self::weighted_sum([v0, v1, v2], [w0, w1, w2])
+    }
 }
 
 #[derive(Copy, Clone)]
 pub struct Unit;
 
 impl WeightedSum for Unit {
-    fn weighted_sum(_: &[Self], _: &[f32]) -> Self {
+    #[inline(always)]
+    fn weighted_sum<const N: usize>(_: [Self; N], _: [f32; N]) -> Self {
         Unit
     }
 }
 
 impl<T: Clone + Mul<f32, Output = T> + Add<Output = T>> WeightedSum for T {
     #[inline(always)]
-    fn weighted_sum(values: &[Self], weights: &[f32]) -> Self {
-        values[1..]
-            .iter()
-            .zip(weights[1..].iter())
-            .fold(values[0].clone() * weights[0], |a, (x, w)| {
-                a + x.clone() * *w
-            })
+    fn weighted_sum<const N: usize>(values: [Self; N], weights: [f32; N]) -> Self {
+        let a = values[0].clone() * weights[0];
+        values
+            .into_iter()
+            .zip(weights)
+            .skip(1)
+            .fold(a, |a, (b, w)| a + b * w)
+    }
+    #[inline(always)]
+    fn weighted_sum2(v0: Self, v1: Self, w0: f32, w1: f32) -> Self {
+        v0 * w0 + v1 * w1
+    }
+    #[inline(always)]
+    fn weighted_sum3(v0: Self, v1: Self, v2: Self, w0: f32, w1: f32, w2: f32) -> Self {
+        v0 * w0 + v1 * w1 + v2 * w2
     }
 }
 

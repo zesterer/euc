@@ -133,7 +133,7 @@ impl<'r> Pipeline<'r> for Teapot<'r> {
 
     #[inline(always)]
     fn blend(&self, _old: Self::Pixel, rgba: Self::Fragment) -> Self::Pixel {
-        let rgba = rgba.map(|e| e.clamped(0.0, 1.0) * 255.0).as_();
+        let rgba = rgba.map(|e| e.max(0.0).min(1.0) * 255.0).as_();
         // The window's framebuffer uses BGRA format
         let bgra = Rgba::new(rgba.b, rgba.g, rgba.r, rgba.a);
         u32::from_le_bytes(bgra.into_array())

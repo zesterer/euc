@@ -1,30 +1,36 @@
-use criterion::{black_box, criterion_group, criterion_main, Bencher, Criterion};
+use criterion::{black_box, criterion_group, criterion_main, Bencher, BenchmarkId, Criterion};
 use derive_more::{Add, Mul};
 use euc::{
-    AaMode, Buffer2d, Clamped, CullMode, DepthMode, Empty, Linear, Pipeline, PixelMode, Sampler,
-    Target, Texture, TriangleList, Unit,
+    Buffer2d, Clamped, CullMode, DepthMode, Empty, Linear, Pipeline, PixelMode, Sampler, Target,
+    Texture, TriangleList, Unit,
 };
-use minifb::{Key, MouseButton, MouseMode, Window, WindowOptions};
-use std::{marker::PhantomData, time::Duration};
+use std::time::Duration;
 use vek::*;
 
-struct TeapotShadow<'a> {
+struct TeapotShadow {
     mvp: Mat4<f32>,
-    phantom: PhantomData<&'a ()>,
 }
 
-impl<'a> Pipeline for TeapotShadow<'a> {
-    type Vertex = wavefront::Vertex<'a>;
+impl<'r> Pipeline<'r> for TeapotShadow {
+    type Vertex = wavefront::Vertex<'r>;
     type VertexData = f32;
     type Primitives = TriangleList;
     type Fragment = Unit;
     type Pixel = ();
 
+    #[inline(always)]
     fn pixel_mode(&self) -> PixelMode {
         PixelMode::PASS
     }
+
+    #[inline(always)]
     fn depth_mode(&self) -> DepthMode {
         DepthMode::LESS_WRITE
+    }
+
+    #[inline(always)]
+    fn rasterizer_config(&self) -> CullMode {
+        CullMode::None
     }
 
     #[inline(always)]
@@ -41,16 +47,17 @@ impl<'a> Pipeline for TeapotShadow<'a> {
     }
 
     #[inline(always)]
-    fn blend(&self, old: Self::Pixel, new: Self::Fragment) {}
+    fn blend(&self, _old: Self::Pixel, _new: Self::Fragment) {}
 }
 
-struct Teapot<'a> {
+struct Teapot<'r> {
     m: Mat4<f32>,
     v: Mat4<f32>,
     p: Mat4<f32>,
     light_pos: Vec3<f32>,
-    shadow: Clamped<Linear<&'a Buffer2d<f32>>>,
+    shadow: Clamped<Linear<&'r Buffer2d<f32>>>,
     light_vp: Mat4<f32>,
+    cam_pos: Vec3<f32>,
 }
 
 #[derive(Add, Mul, Clone)]
@@ -60,18 +67,16 @@ struct VertexData {
     light_view_pos: Vec3<f32>,
 }
 
-impl<'a> Pipeline for Teapot<'a> {
-    type Vertex = wavefront::Vertex<'a>;
+impl<'r> Pipeline<'r> for Teapot<'r> {
+    type Vertex = wavefront::Vertex<'r>;
     type VertexData = VertexData;
     type Primitives = TriangleList;
     type Fragment = Rgba<f32>;
     type Pixel = u32;
 
+    #[inline(always)]
     fn depth_mode(&self) -> DepthMode {
         DepthMode::LESS_WRITE
-    }
-    fn aa_mode(&self) -> AaMode {
-        AaMode::Msaa { level: 1 }
     }
 
     #[inline(always)]
@@ -82,7 +87,7 @@ impl<'a> Pipeline for Teapot<'a> {
         let light_view_pos = self.light_vp * Vec4::from_point(wpos);
         let light_view_pos = light_view_pos.xyz() / light_view_pos.w;
         (
-            (self.p * self.v * wpos).into_array(),
+            (self.p * (self.v * wpos)).into_array(),
             VertexData {
                 wpos: wpos.xyz(),
                 wnorm: wnorm.xyz(),
@@ -101,8 +106,7 @@ impl<'a> Pipeline for Teapot<'a> {
         }: Self::VertexData,
     ) -> Self::Fragment {
         let wnorm = wnorm.normalized();
-        let cam_pos = Vec3::zero();
-        let cam_dir = (wpos - cam_pos).normalized();
+        let cam_dir = (self.cam_pos - wpos).normalized();
         let light_dir = (wpos - self.light_pos).normalized();
         let surf_color = Rgba::new(1.0, 0.8, 0.7, 1.0);
 
@@ -130,7 +134,7 @@ impl<'a> Pipeline for Teapot<'a> {
 
     #[inline(always)]
     fn blend(&self, _old: Self::Pixel, rgba: Self::Fragment) -> Self::Pixel {
-        let rgba = rgba.map(|e| e.clamped(0.0, 1.0) * 255.0).as_();
+        let rgba = rgba.map(|e| e.max(0.0).min(1.0) * 255.0).as_();
         // The window's framebuffer uses BGRA format
         let bgra = Rgba::new(rgba.b, rgba.g, rgba.r, rgba.a);
         u32::from_le_bytes(bgra.into_array())
@@ -147,8 +151,8 @@ fn teapot_benchmark(b: &mut Bencher, &[width, height]: &[usize; 2]) {
     let model =
         wavefront::Obj::from_reader(&include_bytes!("../examples/data/teapot.obj")[..]).unwrap();
 
-    let mut ori = Vec2::new(0.0, 0.0);
-    let mut dist = 6.0;
+    let ori = Vec2::new(-0.55, -0.25);
+    let dist = 4.5;
 
     // Position of objects in the scene
     let teapot_pos = Vec3::new(0.0, 0.0, 0.0);
@@ -181,11 +185,11 @@ fn teapot_benchmark(b: &mut Bencher, &[width, height]: &[usize; 2]) {
         shadow.clear(1.0);
 
         // Shadow pass
-        TeapotShadow {
-            mvp: light_vp * m,
-            phantom: PhantomData,
-        }
-        .render(model.vertices(), &mut Empty::default(), &mut shadow);
+        TeapotShadow { mvp: light_vp * m }.render(
+            model.vertices(),
+            &mut Empty::default(),
+            &mut shadow,
+        );
 
         // Colour pass
         Teapot {
@@ -195,6 +199,7 @@ fn teapot_benchmark(b: &mut Bencher, &[width, height]: &[usize; 2]) {
             light_pos,
             shadow: (&shadow).linear().clamped(),
             light_vp: light_vp,
+            cam_pos: v.inverted().mul_point(Vec3::zero()),
         }
         .render(model.vertices(), &mut color, &mut depth);
 
@@ -204,18 +209,20 @@ fn teapot_benchmark(b: &mut Bencher, &[width, height]: &[usize; 2]) {
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
-    c.bench_function_over_inputs(
-        "teapot",
-        |b, &size| teapot_benchmark(b, size),
-        &[
-            [1, 1],
-            [32, 32],
-            [640, 480],
-            [1024, 800],
-            [2048, 1600],
-            [4096, 3200],
-        ],
-    );
+    for size in [
+        [1, 1],
+        [32, 32],
+        [640, 480],
+        [1024, 800],
+        [2048, 1600],
+        [4096, 3200],
+    ] {
+        c.bench_with_input(
+            BenchmarkId::new("teapot", format!("{size:?}")),
+            &size,
+            |b, size| teapot_benchmark(b, size),
+        );
+    }
 }
 
 criterion_group! {

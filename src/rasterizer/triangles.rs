@@ -17,7 +17,7 @@ impl Rasterizer for Triangles {
         &self,
         mut vertices: I,
         _principal_x: bool,
-        coordinate_mode: CoordinateMode,
+        coords: CoordinateMode,
         cull_mode: CullMode,
         mut blitter: B,
     ) where
@@ -35,7 +35,7 @@ impl Rasterizer for Triangles {
             CullMode::Front => Some(-1.0),
         };
 
-        let flip = match coordinate_mode.y_axis_direction {
+        let flip = match coords.y_axis_direction {
             YAxisDirection::Down => Vec2::new(1.0, 1.0),
             YAxisDirection::Up => Vec2::new(1.0, -1.0),
         };
@@ -119,10 +119,10 @@ impl Rasterizer for Triangles {
             let screen_max = Vec2::<usize>::from(tgt_max).map(|e| e as f32);
             let bounds_clamped = Aabr::<usize> {
                 min: (verts_screen.reduce(|a, b| Vec2::partial_min(a, b)) + 0.0)
-                    .clamped(screen_min, screen_max)
+                    .map3(screen_min, screen_max, |e, min, max| e.max(min).min(max))
                     .as_(),
                 max: (verts_screen.reduce(|a, b| Vec2::partial_max(a, b)) + 1.0)
-                    .clamped(screen_min, screen_max)
+                    .map3(screen_min, screen_max, |e, min, max| e.max(min).min(max))
                     .as_(),
             };
 
@@ -133,78 +133,148 @@ impl Rasterizer for Triangles {
             let w_hom_dy = (weights_at(Vec2::unit_y() * 1000.0) - w_hom_origin) * (1.0 / 1000.0);
 
             // First, order vertices by height
-            let mut verts_by_y = verts_screen;
-            verts_by_y.sort_unstable_by_key(|e| e.y as isize);
+            let min_y = verts_screen.map(|v| v.y).reduce_partial_min();
+            let verts_by_y = if verts_screen.x.y == min_y {
+                if verts_screen.y.y < verts_screen.z.y {
+                    Vec3::new(verts_screen.x, verts_screen.y, verts_screen.z)
+                } else {
+                    Vec3::new(verts_screen.x, verts_screen.z, verts_screen.y)
+                }
+            } else if verts_screen.y.y == min_y {
+                if verts_screen.x.y < verts_screen.z.y {
+                    Vec3::new(verts_screen.y, verts_screen.x, verts_screen.z)
+                } else {
+                    Vec3::new(verts_screen.y, verts_screen.z, verts_screen.x)
+                }
+            } else {
+                if verts_screen.x.y < verts_screen.y.y {
+                    Vec3::new(verts_screen.z, verts_screen.x, verts_screen.y)
+                } else {
+                    Vec3::new(verts_screen.z, verts_screen.y, verts_screen.x)
+                }
+            };
+
+            if verts_euc.map(|v| coords.passes_z_clip(v.z)).reduce_and() {
+                rasterize::<_, _, true>(
+                    coords.clone(),
+                    bounds_clamped,
+                    verts_by_y,
+                    verts_hom,
+                    w_hom_origin,
+                    w_hom_dx,
+                    w_hom_dy,
+                    verts_out,
+                    &mut blitter,
+                );
+            } else {
+                rasterize::<_, _, false>(
+                    coords.clone(),
+                    bounds_clamped,
+                    verts_by_y,
+                    verts_hom,
+                    w_hom_origin,
+                    w_hom_dx,
+                    w_hom_dy,
+                    verts_out,
+                    &mut blitter,
+                );
+            }
 
             // Iterate over fragment candidates within the triangle's bounding box
-            (bounds_clamped.min.y..bounds_clamped.max.y).for_each(|y| {
-                let Vec3 { x: a, y: b, z: c } = verts_by_y;
-                // For each of the lines, calculate the point at which our row intersects it
-                let ac = Lerp::lerp(a.x, c.x, (y as f32 - a.y) / (c.y - a.y)); // Longest side
-                                                                               // Then, depending on the half of the triangle we're in, we need to check different lines
-                let row_bounds = if (y as f32) < b.y {
-                    let ab = Lerp::lerp(a.x, b.x, (y as f32 - a.y) / (b.y - a.y));
-                    Vec2::new(ab.min(ac), ab.max(ac))
-                } else {
-                    let bc = Lerp::lerp(b.x, c.x, (y as f32 - b.y) / (c.y - b.y));
-                    Vec2::new(bc.min(ac), bc.max(ac))
-                };
-
-                // Now we have screen-space bounds for the row. Clean it up and clamp it to the screen bounds
-                let row_range = Vec2::new(row_bounds.x.floor(), row_bounds.y.ceil()).map2(
-                    Vec2::new(bounds_clamped.min.x, bounds_clamped.max.x),
-                    |e, b| {
-                        if e >= bounds_clamped.min.x as f32 && e < bounds_clamped.max.x as f32 {
-                            e as usize
+            #[inline]
+            unsafe fn rasterize<
+                V: Clone + WeightedSum,
+                B: Blitter<V>,
+                const NO_VERTS_CLIPPED: bool,
+            >(
+                coords: CoordinateMode,
+                bounds_clamped: Aabr<usize>,
+                verts_by_y: Vec3<Vec2<f32>>,
+                verts_hom: Vec3<Vec4<f32>>,
+                w_hom_origin: Vec3<f32>,
+                w_hom_dx: Vec3<f32>,
+                w_hom_dy: Vec3<f32>,
+                verts_out: Vec3<V>,
+                blitter: &mut B,
+            ) {
+                (bounds_clamped.min.y..bounds_clamped.max.y).for_each(|y| {
+                    let row_range = if bounds_clamped.size().product() < 128 {
+                        // Stupid version
+                        Vec2::new(bounds_clamped.min.x, bounds_clamped.max.x)
+                    } else {
+                        let Vec3 { x: a, y: b, z: c } = verts_by_y;
+                        // For each of the lines, calculate the point at which our row intersects it
+                        let ac = Lerp::lerp(a.x, c.x, (y as f32 - a.y) / (c.y - a.y)); // Longest side
+                                                                                       // Then, depending on the half of the triangle we're in, we need to check different lines
+                        let row_bounds = if (y as f32) < b.y {
+                            let ab = Lerp::lerp(a.x, b.x, (y as f32 - a.y) / (b.y - a.y));
+                            Vec2::new(ab.min(ac), ab.max(ac))
                         } else {
-                            b
-                        }
-                    },
-                );
+                            let bc = Lerp::lerp(b.x, c.x, (y as f32 - b.y) / (c.y - b.y));
+                            Vec2::new(bc.min(ac), bc.max(ac))
+                        };
 
-                // Stupid version
-                //let row_range = Vec2::new(bounds_clamped.min.x, bounds_clamped.max.x);
+                        // Now we have screen-space bounds for the row. Clean it up and clamp it to the screen bounds
+                        Vec2::new(row_bounds.x.floor(), row_bounds.y.ceil()).map2(
+                            Vec2::new(bounds_clamped.min.x, bounds_clamped.max.x),
+                            |e, b| {
+                                if e >= bounds_clamped.min.x as f32
+                                    && e < bounds_clamped.max.x as f32
+                                {
+                                    e as usize
+                                } else {
+                                    b
+                                }
+                            },
+                        )
+                    };
 
-                // Find the barycentric weights for the start of this row
-                let mut w_hom = w_hom_origin + w_hom_dy * y as f32 + w_hom_dx * row_range.x as f32;
+                    // Find the barycentric weights for the start of this row
+                    let mut w_hom =
+                        w_hom_origin + w_hom_dy * y as f32 + w_hom_dx * row_range.x as f32;
 
-                for x in row_range.x..row_range.y {
-                    // Calculate vertex weights to determine vs_out lerping and intersection
-                    let w_unbalanced = Vec3::new(w_hom.x, w_hom.y, w_hom.z - w_hom.x - w_hom.y);
-                    let w = w_unbalanced * w_hom.z.recip();
+                    (row_range.x..row_range.y).for_each(|x| {
+                        // Calculate vertex weights to determine vs_out lerping and intersection
+                        let w_unbalanced = Vec3::new(w_hom.x, w_hom.y, w_hom.z - w_hom.x - w_hom.y);
 
-                    // Test the weights to determine whether the fragment is inside the triangle
-                    if w.map(|e| e >= 0.0).reduce_and() {
-                        // Calculate the interpolated z coordinate for the depth target
-                        let z: f32 = verts_hom.map(|v| v.z).dot(w_unbalanced);
+                        // Test the weights to determine whether the fragment is inside the triangle
+                        if w_unbalanced.map(|e| e >= 0.0).reduce_and() {
+                            // Calculate the interpolated z coordinate for the depth target
+                            let z = verts_hom.map(|v| v.z).dot(w_unbalanced);
 
-                        // Don't use `.contains(&z)`, it isn't inclusive
-                        if coordinate_mode
-                            .z_clip_range
-                            .clone()
-                            .map_or(true, |clip| clip.start <= z && z <= clip.end)
-                        {
-                            if blitter.test_fragment([x, y], z) {
-                                let get_v_data = |[x, y]: [f32; 2]| {
-                                    let w_hom = w_hom_origin + w_hom_dy * y + w_hom_dx * x;
+                            if NO_VERTS_CLIPPED || coords.passes_z_clip(z) {
+                                if blitter.test_fragment(x, y, z) {
+                                    let get_v_data = |x: f32, y: f32| {
+                                        let w_hom = w_hom_origin + w_hom_dy * y + w_hom_dx * x;
 
-                                    // Calculate vertex weights to determine vs_out lerping and intersection
-                                    let w_unbalanced =
-                                        Vec3::new(w_hom.x, w_hom.y, w_hom.z - w_hom.x - w_hom.y);
-                                    let w = w_unbalanced * w_hom.z.recip();
+                                        // Calculate vertex weights to determine vs_out lerping and intersection
+                                        let w_unbalanced = Vec3::new(
+                                            w_hom.x,
+                                            w_hom.y,
+                                            w_hom.z - w_hom.x - w_hom.y,
+                                        );
+                                        let w = w_unbalanced * w_hom.z.recip();
 
-                                    V::weighted_sum(verts_out.as_slice(), w.as_slice())
-                                };
+                                        V::weighted_sum3(
+                                            verts_out.x.clone(),
+                                            verts_out.y.clone(),
+                                            verts_out.z.clone(),
+                                            w.x,
+                                            w.y,
+                                            w.z,
+                                        )
+                                    };
 
-                                blitter.emit_fragment([x, y], get_v_data, z);
+                                    blitter.emit_fragment(x, y, get_v_data, z);
+                                }
                             }
                         }
-                    }
 
-                    // Update barycentric weight ready for the next fragment
-                    w_hom += w_hom_dx;
-                }
-            });
+                        // Update barycentric weight ready for the next fragment
+                        w_hom += w_hom_dx;
+                    });
+                });
+            }
         });
     }
 }

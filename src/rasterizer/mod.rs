@@ -37,16 +37,17 @@ pub trait Blitter<V>: Sized {
     /// # Safety
     ///
     /// This function *must* be called with a position that is valid for size and bounds that this type provides.
-    unsafe fn test_fragment(&mut self, pos: [usize; 2], z: f32) -> bool;
+    unsafe fn test_fragment(&mut self, x: usize, y: usize, z: f32) -> bool;
 
     /// Emit a fragment with the given attributes.
     ///
     /// # Safety
     ///
     /// This function *must* be called with a position that is valid for size and bounds that this type provides.
-    unsafe fn emit_fragment<F: FnMut([f32; 2]) -> V>(
+    unsafe fn emit_fragment<F: FnMut(f32, f32) -> V>(
         &mut self,
-        pos: [usize; 2],
+        x: usize,
+        y: usize,
         get_v_data: F,
         z: f32,
     );

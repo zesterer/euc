@@ -91,6 +91,7 @@ pub enum YAxisDirection {
 }
 
 /// The configuration of the coordinate system used by a pipeline.
+#[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct CoordinateMode {
     pub handedness: Handedness,
@@ -145,6 +146,13 @@ impl CoordinateMode {
             z_clip_range: None,
             ..self
         }
+    }
+
+    pub(crate) fn passes_z_clip(&self, z: f32) -> bool {
+        // Don't use `.contains(&z)`, it isn't inclusive
+        self.z_clip_range
+            .as_ref()
+            .map_or(true, |clip| clip.start <= z && z <= clip.end)
     }
 }
 
@@ -338,7 +346,6 @@ fn render_par<'r, Pipe, S, P, D>(
                     let tgt_min = [0, row_start];
                     let tgt_max = [tgt_size[0], row_end];
                     // Safety: we have exclusive access to our specific regions of `pixel` and `depth`
-                    // TODO: Actually, unchecked_exclusive is UB, fix this
                     unsafe {
                         render_inner(
                             pipeline,
@@ -371,7 +378,6 @@ fn render_seq<'r, Pipe, S, P, D>(
     D: Target<Texel = f32> + Send + Sync,
 {
     // Safety: we have exclusive access to `pixel` and `depth`
-    // TODO: Actually, unchecked_exclusive is UB, fix this
     unsafe {
         render_inner(
             pipeline,
@@ -456,6 +462,7 @@ unsafe fn render_inner<'r, Pipe, S, P, D>(
 
         msaa_level: usize,
         msaa_buf: Option<Buffer2d<(u64, Option<Pipe::Fragment>)>>,
+        msaa_div: f32,
     }
 
     impl<'a, 'r, Pipe, P, D> BlitterImpl<'a, 'r, Pipe, P, D>
@@ -465,20 +472,17 @@ unsafe fn render_inner<'r, Pipe, S, P, D>(
         D: Target<Texel = f32> + Send + Sync,
     {
         #[inline]
-        unsafe fn msaa_fragment<F: FnMut([usize; 2]) -> Pipe::VertexData>(
+        unsafe fn msaa_fragment<F: FnMut(usize, usize) -> Pipe::VertexData>(
             &mut self,
-            pos: [usize; 2],
+            x: usize,
+            y: usize,
             mut get_v_data: F,
         ) -> Pipe::Fragment {
             // Safety: MSAA buffer will always be large enough
-            let texel = self
-                .msaa_buf
-                .as_mut()
-                .unwrap()
-                .get_mut([pos[0] + 1, pos[1] + 1]);
+            let texel = self.msaa_buf.as_mut().unwrap().get_mut([x + 1, y + 1]);
             if texel.0 != self.primitive_count {
                 texel.0 = self.primitive_count;
-                texel.1 = Some(self.pipeline.fragment(get_v_data(pos)));
+                texel.1 = Some(self.pipeline.fragment(get_v_data(x, y)));
             }
             // Safety: We know this entry will always be occupied due to the code above
             texel
@@ -510,9 +514,9 @@ unsafe fn render_inner<'r, Pipe, S, P, D>(
         }
 
         #[inline]
-        unsafe fn test_fragment(&mut self, pos: [usize; 2], z: f32) -> bool {
+        unsafe fn test_fragment(&mut self, x: usize, y: usize, z: f32) -> bool {
             if let Some(test) = self.depth_mode.test {
-                let old_z = self.depth.read_exclusive_unchecked(pos);
+                let old_z = self.depth.read_exclusive_unchecked(x, y);
                 z.partial_cmp(&old_z) == Some(test)
             } else {
                 true
@@ -520,56 +524,54 @@ unsafe fn render_inner<'r, Pipe, S, P, D>(
         }
 
         #[inline]
-        unsafe fn emit_fragment<F: FnMut([f32; 2]) -> Pipe::VertexData>(
+        unsafe fn emit_fragment<F: FnMut(f32, f32) -> Pipe::VertexData>(
             &mut self,
-            pos: [usize; 2],
+            x: usize,
+            y: usize,
             mut get_v_data: F,
             z: f32,
         ) {
             if self.depth_mode.write {
-                self.depth.write_exclusive_unchecked(pos, z);
+                self.depth.write_exclusive_unchecked(x, y, z);
             }
 
             if self.write_pixels {
                 let frag = if self.msaa_level == 0 {
-                    self.pipeline
-                        .fragment(get_v_data([pos[0] as f32, pos[1] as f32]))
+                    self.pipeline.fragment(get_v_data(x as f32, y as f32))
                 } else {
-                    let fract = [(pos[0], self.tgt_min[0]), (pos[1], self.tgt_min[1])].map(
-                        |(e, tgt_min)| {
-                            ((e - tgt_min) as f32 / (1 << self.msaa_level) as f32).fract()
-                        },
+                    let (fractx, fracty) = (
+                        ((x - self.tgt_min[0]) as f32 * self.msaa_div).fract(),
+                        ((y - self.tgt_min[1]) as f32 * self.msaa_div).fract(),
                     );
-                    let posi = [
-                        (pos[0] - self.tgt_min[0]) >> self.msaa_level,
-                        (pos[1] - self.tgt_min[1]) >> self.msaa_level,
-                    ];
+
+                    let posix = (x - self.tgt_min[0]) >> self.msaa_level;
+                    let posiy = (y - self.tgt_min[1]) >> self.msaa_level;
 
                     let tgt_min = self.tgt_min;
                     let msaa_level = self.msaa_level;
-                    let mut get_v_data = |[x, y]: [usize; 2]| {
-                        get_v_data([
+                    let mut get_v_data = |x: usize, y: usize| {
+                        get_v_data(
                             (tgt_min[0] + (x << msaa_level)) as f32,
                             (tgt_min[1] + (y << msaa_level)) as f32,
-                        ])
+                        )
                     };
 
-                    let t00 = self.msaa_fragment([posi[0] + 0, posi[1] + 0], &mut get_v_data);
-                    let t10 = self.msaa_fragment([posi[0] + 1, posi[1] + 0], &mut get_v_data);
-                    let t01 = self.msaa_fragment([posi[0] + 0, posi[1] + 1], &mut get_v_data);
-                    let t11 = self.msaa_fragment([posi[0] + 1, posi[1] + 1], &mut get_v_data);
+                    let t00 = self.msaa_fragment(posix + 0, posiy + 0, &mut get_v_data);
+                    let t10 = self.msaa_fragment(posix + 1, posiy + 0, &mut get_v_data);
+                    let t01 = self.msaa_fragment(posix + 0, posiy + 1, &mut get_v_data);
+                    let t11 = self.msaa_fragment(posix + 1, posiy + 1, &mut get_v_data);
 
-                    let t0 = Pipe::Fragment::weighted_sum(&[t00, t01], &[1.0 - fract[1], fract[1]]);
-                    let t1 = Pipe::Fragment::weighted_sum(&[t10, t11], &[1.0 - fract[1], fract[1]]);
+                    let t0 = Pipe::Fragment::weighted_sum2(t00, t01, 1.0 - fracty, fracty);
+                    let t1 = Pipe::Fragment::weighted_sum2(t10, t11, 1.0 - fracty, fracty);
 
-                    let t = Pipe::Fragment::weighted_sum(&[t0, t1], &[1.0 - fract[0], fract[0]]);
+                    let t = Pipe::Fragment::weighted_sum2(t0, t1, 1.0 - fractx, fractx);
                     t
 
                     //self.fetch_pixel([posi[0] + 0, posi[1] + 0], v_data.clone())
                 };
-                let old_px = self.pixel.read_exclusive_unchecked(pos);
+                let old_px = self.pixel.read_exclusive_unchecked(x, y);
                 let blended_px = self.pipeline.blend(old_px, frag);
-                self.pixel.write_exclusive_unchecked(pos, blended_px);
+                self.pixel.write_exclusive_unchecked(x, y, blended_px);
             }
         }
     }
@@ -604,6 +606,7 @@ unsafe fn render_inner<'r, Pipe, S, P, D>(
             } else {
                 None
             },
+            msaa_div: 1.0 / (1 << msaa_level) as f32,
         },
     );
 }

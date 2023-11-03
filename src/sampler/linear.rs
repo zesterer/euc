@@ -29,11 +29,10 @@ where
     #[inline(always)]
     fn sample(&self, index: [Self::Index; 2]) -> Self::Sample {
         let size = self.raw_texture().size();
-        let size_f32 = size.map(|e| e as f32);
         // Index in texture coordinates
         let index_tex = [
-            index[0].fract() * size_f32[0],
-            index[1].fract() * size_f32[1],
+            index[0].fract() * size[0] as f32,
+            index[1].fract() * size[1] as f32,
         ];
         // Find texel sample coordinates
         let posi = index_tex.map(|e| e.trunc() as usize);
@@ -55,22 +54,20 @@ where
             index
         );
 
-        let t00 = self.raw_texture().read([
-            (posi[0] + 0).min(size[0] - 1),
-            (posi[1] + 0).min(size[1] - 1),
-        ]);
-        let t10 = self.raw_texture().read([
-            (posi[0] + 1).min(size[0] - 1),
-            (posi[1] + 0).min(size[1] - 1),
-        ]);
-        let t01 = self.raw_texture().read([
-            (posi[0] + 0).min(size[0] - 1),
-            (posi[1] + 1).min(size[1] - 1),
-        ]);
-        let t11 = self.raw_texture().read([
-            (posi[0] + 1).min(size[0] - 1),
-            (posi[1] + 1).min(size[1] - 1),
-        ]);
+        let p0x = (posi[0] + 0).min(size[0] - 1);
+        let p0y = (posi[1] + 0).min(size[1] - 1);
+        let p1x = (posi[0] + 1).min(size[0] - 1);
+        let p1y = (posi[1] + 1).min(size[1] - 1);
+
+        let (t00, t10, t01, t11);
+        // SAFETY: the `min` above ensures we're in-bounds. Also, this type cannot be created with an underlying
+        // texture with a zero size.
+        unsafe {
+            t00 = self.raw_texture().read_unchecked([p0x, p0y]);
+            t10 = self.raw_texture().read_unchecked([p1x, p0y]);
+            t01 = self.raw_texture().read_unchecked([p0x, p1y]);
+            t11 = self.raw_texture().read_unchecked([p1x, p1y]);
+        }
 
         let t0 = t00 * (1.0 - fract[1]) + t01 * fract[1];
         let t1 = t10 * (1.0 - fract[1]) + t11 * fract[1];

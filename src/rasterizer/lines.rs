@@ -17,7 +17,7 @@ impl Rasterizer for Lines {
         &self,
         mut vertices: I,
         _principal_x: bool,
-        coordinate_mode: CoordinateMode,
+        coords: CoordinateMode,
         _config: (),
         mut blitter: B,
     ) where
@@ -29,7 +29,7 @@ impl Rasterizer for Lines {
         let tgt_min = blitter.target_min();
         let tgt_max = blitter.target_max();
 
-        let flip = match coordinate_mode.y_axis_direction {
+        let flip = match coords.y_axis_direction {
             YAxisDirection::Down => Vec2::new(1.0, 1.0),
             YAxisDirection::Up => Vec2::new(1.0, -1.0),
         };
@@ -93,26 +93,26 @@ impl Rasterizer for Lines {
                     } * norm;
 
                     // Calculate the interpolated z coordinate for the depth target
-                    let z: f32 = Lerp::lerp(verts_euc.x.z, verts_euc.y.z, frac);
+                    let z = Lerp::lerp(verts_euc.x.z, verts_euc.y.z, frac);
 
-                    // Don't use `.contains(&z)`, it isn't inclusive
-                    if coordinate_mode
-                        .z_clip_range
-                        .clone()
-                        .map_or(true, |clip| clip.start <= z && z <= clip.end)
-                    {
-                        if blitter.test_fragment([x, y], z) {
-                            let get_v_data = |[x, y]: [f32; 2]| {
+                    if coords.passes_z_clip(z) {
+                        if blitter.test_fragment(x, y, z) {
+                            let get_v_data = |x: f32, y: f32| {
                                 let frac = if use_x {
                                     x - verts_screen.x.x
                                 } else {
                                     y - verts_screen.x.y
                                 } * norm;
 
-                                V::weighted_sum(verts_out.as_slice(), &[1.0 - frac, frac])
+                                V::weighted_sum2(
+                                    verts_out.x.clone(),
+                                    verts_out.y.clone(),
+                                    1.0 - frac,
+                                    frac,
+                                )
                             };
 
-                            blitter.emit_fragment([x, y], get_v_data, z);
+                            blitter.emit_fragment(x, y, get_v_data, z);
                         }
                     }
                 },
