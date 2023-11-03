@@ -27,37 +27,25 @@ where
     }
 
     #[inline(always)]
-    fn sample(&self, index: [Self::Index; 2]) -> Self::Sample {
-        let size = self.raw_texture().size();
+    fn sample(&self, [x, y]: [Self::Index; 2]) -> Self::Sample {
+        let [w, h] = self.raw_texture().size();
         // Index in texture coordinates
-        let index_tex = [
-            index[0].fract() * size[0] as f32,
-            index[1].fract() * size[1] as f32,
-        ];
+        let index_tex_x = x.fract() * w as f32;
+        let index_tex_y = y.fract() * h as f32;
         // Find texel sample coordinates
-        let posi = index_tex.map(|e| e.trunc() as usize);
+        let posi_x = index_tex_x.trunc() as usize;
+        let posi_y = index_tex_y.trunc() as usize;
         // Find interpolation values
-        let fract = index_tex.map(|e| e.fract());
+        let fract_x = index_tex_x.fract();
+        let fract_y = index_tex_y.fract();
 
-        debug_assert!(
-            posi[0] < size[0],
-            "pos: {:?}, sz: {:?}, idx: {:?}",
-            posi,
-            size,
-            index
-        );
-        debug_assert!(
-            posi[1] < size[1],
-            "pos: {:?}, sz: {:?}, idx: {:?}",
-            posi,
-            size,
-            index
-        );
+        debug_assert!(posi_x < w, "pos: {:?}, w: {:?}", posi_x, w,);
+        debug_assert!(posi_y < h, "pos: {:?}, h: {:?}", posi_y, h,);
 
-        let p0x = (posi[0] + 0).min(size[0] - 1);
-        let p0y = (posi[1] + 0).min(size[1] - 1);
-        let p1x = (posi[0] + 1).min(size[0] - 1);
-        let p1y = (posi[1] + 1).min(size[1] - 1);
+        let p0x = (posi_x + 0).min(w - 1);
+        let p0y = (posi_y + 0).min(h - 1);
+        let p1x = (posi_x + 1).min(w - 1);
+        let p1y = (posi_y + 1).min(h - 1);
 
         let (t00, t10, t01, t11);
         // SAFETY: the `min` above ensures we're in-bounds. Also, this type cannot be created with an underlying
@@ -69,10 +57,10 @@ where
             t11 = self.raw_texture().read_unchecked([p1x, p1y]);
         }
 
-        let t0 = t00 * (1.0 - fract[1]) + t01 * fract[1];
-        let t1 = t10 * (1.0 - fract[1]) + t11 * fract[1];
+        let t0 = t00 * (1.0 - fract_y) + t01 * fract_y;
+        let t1 = t10 * (1.0 - fract_y) + t11 * fract_y;
 
-        let t = t0 * (1.0 - fract[0]) + t1 * fract[0];
+        let t = t0 * (1.0 - fract_x) + t1 * fract_x;
 
         t
     }
