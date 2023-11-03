@@ -56,6 +56,7 @@ struct Teapot<'r> {
     light_pos: Vec3<f32>,
     shadow: Clamped<Linear<&'r Buffer2d<f32>>>,
     light_vp: Mat4<f32>,
+    cam_pos: Vec3<f32>,
 }
 
 #[derive(Add, Mul, Clone)]
@@ -104,8 +105,7 @@ impl<'r> Pipeline<'r> for Teapot<'r> {
         }: Self::VertexData,
     ) -> Self::Fragment {
         let wnorm = wnorm.normalized();
-        let cam_pos = Vec3::zero();
-        let cam_dir = (wpos - cam_pos).normalized();
+        let cam_dir = (self.cam_pos - wpos).normalized();
         let light_dir = (wpos - self.light_pos).normalized();
         let surf_color = Rgba::new(1.0, 0.8, 0.7, 1.0);
 
@@ -217,6 +217,7 @@ fn main() {
             light_pos,
             shadow: (&shadow).linear().clamped(),
             light_vp,
+            cam_pos: v.inverted().mul_point(Vec3::zero()),
         }
         .render(model.vertices(), &mut color, &mut depth);
 
