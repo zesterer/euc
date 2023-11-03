@@ -67,6 +67,7 @@ thread-based parallelism to accelerate rendering.
 - N-dimensional textures and samplers (including support for filtering, clamping, tiling, mirroring, etc.)
 - Customisable coordinate space (choose compatibility with OpenGL, Vulkan, DirectX, or Metal)
 - Built-in support for index buffers
+- MSAA (Multi-Sample Anti-Aliasing)
 
 ## Why?
 
