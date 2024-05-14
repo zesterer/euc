@@ -320,7 +320,7 @@ fn render_par<'r, Pipe, S, P, D>(
 
     // TODO: Don't pull all vertices at once
     let vertices = fetch_vertex.collect::<Vec<_>>();
-    let threads = num_cpus::get();
+    let threads = std::thread::available_parallelism().map(|cpu| cpu.into()).unwrap_or(1usize);
     let row = AtomicUsize::new(0);
 
     const FRAGMENTS_PER_GROUP: usize = 20_000; // Magic number, maybe make this configurable?
