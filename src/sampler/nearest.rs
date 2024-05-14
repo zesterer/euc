@@ -7,7 +7,7 @@ pub struct Nearest<T, I = f32> {
     pub(crate) phantom: PhantomData<I>,
 }
 
-impl<'a, T, I, const N: usize> Sampler<N> for Nearest<T, I>
+impl<T, I, const N: usize> Sampler<N> for Nearest<T, I>
 where
     T: Texture<N>,
     I: Clone + Mul<Output = I> + Denormalize<T::Index>,

@@ -10,7 +10,7 @@ use micromath::F32Ext;
 /// A sampler that uses nearest-neighbor sampling.
 pub struct Linear<T, I = f32>(pub(crate) T, pub(crate) PhantomData<I>);
 
-impl<'a, T> Sampler<2> for Linear<T, f32>
+impl<T> Sampler<2> for Linear<T, f32>
 where
     T: Texture<2, Index = usize>,
     T::Texel: Mul<f32, Output = T::Texel> + Add<Output = T::Texel>,

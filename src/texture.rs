@@ -154,9 +154,7 @@ impl<T: Clone, F: Clone, U> Clone for Map<T, F, U> {
     }
 }
 
-impl<'a, T: Texture<N>, U: Clone, F: Fn(T::Texel) -> U, const N: usize> Texture<N>
-    for Map<T, F, U>
-{
+impl<T: Texture<N>, U: Clone, F: Fn(T::Texel) -> U, const N: usize> Texture<N> for Map<T, F, U> {
     type Index = T::Index;
     type Texel = U;
     #[inline(always)]
@@ -260,7 +258,7 @@ pub trait Target: Texture<2, Index = usize> {
     }
 }
 
-impl<'a, T: Target> Target for &'a mut T {
+impl<T: Target> Target for &mut T {
     #[inline(always)]
     unsafe fn read_exclusive_unchecked(&self, x: usize, y: usize) -> Self::Texel {
         T::read_exclusive_unchecked(self, x, y)
@@ -341,7 +339,7 @@ where
 
     #[inline(always)]
     fn read(&self, [x, y]: [Self::Index; 2]) -> Self::Texel {
-        self.get_pixel(x as u32, y as u32).clone()
+        *self.get_pixel(x as u32, y as u32)
     }
 }
 
