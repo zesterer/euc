@@ -58,10 +58,10 @@ impl Rasterizer for Lines {
             let screen_min = Vec2::<usize>::from(tgt_min).map(|e| e as f32);
             let screen_max = Vec2::<usize>::from(tgt_max).map(|e| e as f32);
             let bounds_clamped = Aabr::<usize> {
-                min: (verts_screen.reduce(|a, b| Vec2::partial_min(a, b)) + 0.0)
+                min: (verts_screen.reduce(Vec2::partial_min) + 0.0)
                     .clamped(screen_min, screen_max)
                     .as_(),
-                max: (verts_screen.reduce(|a, b| Vec2::partial_max(a, b)) + 1.0)
+                max: (verts_screen.reduce(Vec2::partial_max) + 1.0)
                     .clamped(screen_min, screen_max)
                     .as_(),
             };
@@ -95,25 +95,23 @@ impl Rasterizer for Lines {
                     // Calculate the interpolated z coordinate for the depth target
                     let z = Lerp::lerp(verts_euc.x.z, verts_euc.y.z, frac);
 
-                    if coords.passes_z_clip(z) {
-                        if blitter.test_fragment(x, y, z) {
-                            let get_v_data = |x: f32, y: f32| {
-                                let frac = if use_x {
-                                    x - verts_screen.x.x
-                                } else {
-                                    y - verts_screen.x.y
-                                } * norm;
+                    if coords.passes_z_clip(z) && blitter.test_fragment(x, y, z) {
+                        let get_v_data = |x: f32, y: f32| {
+                            let frac = if use_x {
+                                x - verts_screen.x.x
+                            } else {
+                                y - verts_screen.x.y
+                            } * norm;
 
-                                V::weighted_sum2(
-                                    verts_out.x.clone(),
-                                    verts_out.y.clone(),
-                                    1.0 - frac,
-                                    frac,
-                                )
-                            };
+                            V::weighted_sum2(
+                                verts_out.x.clone(),
+                                verts_out.y.clone(),
+                                1.0 - frac,
+                                frac,
+                            )
+                        };
 
-                            blitter.emit_fragment(x, y, get_v_data, z);
-                        }
+                        blitter.emit_fragment(x, y, get_v_data, z);
                     }
                 },
             );

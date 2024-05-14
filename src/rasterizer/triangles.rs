@@ -118,10 +118,10 @@ impl Rasterizer for Triangles {
             let screen_min = Vec2::<usize>::from(tgt_min).map(|e| e as f32);
             let screen_max = Vec2::<usize>::from(tgt_max).map(|e| e as f32);
             let bounds_clamped = Aabr::<usize> {
-                min: (verts_screen.reduce(|a, b| Vec2::partial_min(a, b)) + 0.0)
+                min: (verts_screen.reduce(Vec2::partial_min) + 0.0)
                     .map3(screen_min, screen_max, |e, min, max| e.max(min).min(max))
                     .as_(),
-                max: (verts_screen.reduce(|a, b| Vec2::partial_max(a, b)) + 1.0)
+                max: (verts_screen.reduce(Vec2::partial_max) + 1.0)
                     .map3(screen_min, screen_max, |e, min, max| e.max(min).min(max))
                     .as_(),
             };
@@ -147,6 +147,7 @@ impl Rasterizer for Triangles {
                     Vec3::new(verts_screen.y, verts_screen.z, verts_screen.x)
                 }
             } else {
+                #[allow(clippy::collapsible_else_if)]
                 if verts_screen.x.y < verts_screen.y.y {
                     Vec3::new(verts_screen.z, verts_screen.x, verts_screen.y)
                 } else {
@@ -242,31 +243,28 @@ impl Rasterizer for Triangles {
                             // Calculate the interpolated z coordinate for the depth target
                             let z = verts_hom.map(|v| v.z).dot(w_unbalanced);
 
-                            if NO_VERTS_CLIPPED || coords.passes_z_clip(z) {
-                                if blitter.test_fragment(x, y, z) {
-                                    let get_v_data = |x: f32, y: f32| {
-                                        let w_hom = w_hom_origin + w_hom_dy * y + w_hom_dx * x;
+                            if (NO_VERTS_CLIPPED || coords.passes_z_clip(z))
+                                && blitter.test_fragment(x, y, z)
+                            {
+                                let get_v_data = |x: f32, y: f32| {
+                                    let w_hom = w_hom_origin + w_hom_dy * y + w_hom_dx * x;
 
-                                        // Calculate vertex weights to determine vs_out lerping and intersection
-                                        let w_unbalanced = Vec3::new(
-                                            w_hom.x,
-                                            w_hom.y,
-                                            w_hom.z - w_hom.x - w_hom.y,
-                                        );
-                                        let w = w_unbalanced * w_hom.z.recip();
+                                    // Calculate vertex weights to determine vs_out lerping and intersection
+                                    let w_unbalanced =
+                                        Vec3::new(w_hom.x, w_hom.y, w_hom.z - w_hom.x - w_hom.y);
+                                    let w = w_unbalanced * w_hom.z.recip();
 
-                                        V::weighted_sum3(
-                                            verts_out.x.clone(),
-                                            verts_out.y.clone(),
-                                            verts_out.z.clone(),
-                                            w.x,
-                                            w.y,
-                                            w.z,
-                                        )
-                                    };
+                                    V::weighted_sum3(
+                                        verts_out.x.clone(),
+                                        verts_out.y.clone(),
+                                        verts_out.z.clone(),
+                                        w.x,
+                                        w.y,
+                                        w.z,
+                                    )
+                                };
 
-                                    blitter.emit_fragment(x, y, get_v_data, z);
-                                }
+                                blitter.emit_fragment(x, y, get_v_data, z);
                             }
                         }
 

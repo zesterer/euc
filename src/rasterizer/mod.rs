@@ -6,20 +6,15 @@ pub use self::{lines::Lines, triangles::Triangles};
 use crate::{math::WeightedSum, CoordinateMode};
 
 /// The face culling strategy used during rendering.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Default, Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum CullMode {
     /// Do not cull triangles regardless of their winding order
     None,
     /// Cull clockwise triangles
+    #[default]
     Back,
     /// Cull counter-clockwise triangles
     Front,
-}
-
-impl Default for CullMode {
-    fn default() -> Self {
-        CullMode::Back
-    }
 }
 
 /// A trait for types that define an interface for blitting fragments to surfaces
