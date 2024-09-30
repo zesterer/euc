@@ -110,7 +110,7 @@ fn main() {
     // Load a texture from disk
     let texture = image::open("examples/data/rust.png").unwrap().to_rgba8();
 
-    // We can use the original texture when renderering, but `image::ImageBuffer` is slow to sample, so we convert it
+    // We can use the original texture when rendering, but `image::ImageBuffer` is slow to sample, so we convert it
     // to euc's buffer types.
     let texture = Buffer2d::from_texture(&texture);
 

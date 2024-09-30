@@ -85,7 +85,7 @@ that's designed for high-performance GPGPU on a vast array of hardware while
 `euc` is simply a humble software-renderer.
 
 However, for someone new to 3D rendering that wants to explore new techniques
-without all of the beaurocratic cruft, `euc` might well serve a useful purpose.
+without all of the bureaucratic cruft, `euc` might well serve a useful purpose.
 
 ### Static images, pre-renders, and UI
 
