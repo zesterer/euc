@@ -5,6 +5,9 @@ pub use self::{linear::Linear, nearest::Nearest};
 
 use crate::{math::*, texture::Texture};
 
+#[cfg(feature = "micromath")]
+use micromath::F32Ext;
+
 /// A trait that describes a sampler of a texture.
 ///
 /// Samplers use normalised coordinates (between 0 and 1) to sample textures. Often, samplers will combine this with

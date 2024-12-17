@@ -42,7 +42,7 @@
 
 extern crate alloc;
 
-#[cfg(feature = "std")]
+#[cfg(any(feature = "par", not(feature = "micromath")))]
 extern crate std;
 
 /// N-dimensional buffers that may be used as textures and render targets.

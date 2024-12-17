@@ -2,37 +2,32 @@
 name = "euc"
 version = "0.6.0"
 description = "A software rendering crate that lets you write shaders with Rust"
-authors = ["Joshua Barretto <joshua.s.barretto@gmail.com>", "Martin Sandfuchs <martin@cluginbuehl.ch>"]
+authors = [
+	"Joshua Barretto <joshua.s.barretto@gmail.com>",
+	"Martin Sandfuchs <martin@cluginbuehl.ch>",
+]
 license = "Apache-2.0 AND MIT"
 repository = "https://github.com/zesterer/euc"
 readme = "README.md"
 edition = "2021"
 keywords = ["renderer", "3D", "graphics", "rasterizer", "shader"]
-exclude = [
-	"/misc",
-	"/misc/*",
-]
+exclude = ["/misc", "/misc/*"]
 
 [dependencies]
-vek = { version = "0.17", default-features = false, features = [] }
 image = { version = "0.25", optional = true }
 fxhash = { version = "0.2", optional = true }
 micromath = { version = "2", optional = true }
 clipline = "0.2"
 
 [features]
-default = ["std", "image", "par"]
-std = ["vek/std"]
-libm = ["vek/libm"]
-nightly = []
-simd = ["vek/repr_simd", "vek/platform_intrinsics"]
+default = ["image", "par"]
 image = ["dep:image"]
-par = ["std", "fxhash"]
+par = ["fxhash"]
 micromath = ["dep:micromath"]
 
 [dev-dependencies]
 vek = { version = "0.17", default-features = false, features = ["rgba"] }
-minifb = "0.20"
+minifb = "0.27"
 wavefront = "0.2"
 criterion = "0.5"
 image = "0.25"
