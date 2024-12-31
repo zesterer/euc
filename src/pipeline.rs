@@ -2,7 +2,7 @@ use crate::{
     buffer::Buffer2d, math::WeightedSum, primitives::PrimitiveKind, rasterizer::Rasterizer,
     texture::Target,
 };
-use alloc::{collections::VecDeque, vec::Vec};
+use alloc::collections::VecDeque;
 use core::{borrow::Borrow, cmp::Ordering, ops::Range};
 
 #[cfg(feature = "micromath")]
@@ -314,6 +314,7 @@ fn render_par<'r, Pipe, S, P, D>(
     P: Target<Texel = Pipe::Pixel> + Send + Sync,
     D: Target<Texel = f32> + Send + Sync,
 {
+    use alloc::vec::Vec;
     use core::sync::atomic::{AtomicUsize, Ordering};
     use std::thread;
 
